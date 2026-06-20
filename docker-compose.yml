@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: samy
+      POSTGRES_PASSWORD: samy
+      POSTGRES_DB: samy
+    volumes:
+      - samy_pg:/var/lib/postgresql/data
+  postgres_test:
+    image: postgres:16
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: samy
+      POSTGRES_PASSWORD: samy
+      POSTGRES_DB: samy_test
+volumes:
+  samy_pg:
