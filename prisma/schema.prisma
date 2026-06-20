@@ -7,8 +7,36 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model HealthCheck {
-  id Int @id @default(autoincrement())
+model LedgerEntry {
+  id               String   @id @default(uuid())
+  account          String
+  entryType        String
+  amount           Decimal  @db.Decimal(14, 2)
+  transactionGroup String
+  idempotencyRef   String   @unique
+  metadata         Json?
+  createdAt        DateTime @default(now())
 
-  @@map("health_check")
+  @@index([account])
+  @@map("ledger_entries")
+}
+
+model Payout {
+  id          String    @id @default(uuid())
+  account     String
+  amount      Decimal   @db.Decimal(14, 2)
+  status      String    @default("PENDING")
+  pixKey      String
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([status])
+  @@map("payouts")
+}
+
+model KycStatus {
+  account  String  @id
+  approved Boolean @default(false)
+
+  @@map("kyc_status")
 }
