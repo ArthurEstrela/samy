@@ -20,9 +20,8 @@ export class TokenService {
     if (!accessSecret) {
       throw new Error('JWT_ACCESS_SECRET env var is required');
     }
-    if (!process.env.JWT_REFRESH_SECRET) {
-      throw new Error('JWT_REFRESH_SECRET env var is required');
-    }
+    // NOTE: refresh tokens are opaque random values stored as a hash, NOT signed
+    // JWTs, so there is intentionally no JWT_REFRESH_SECRET requirement here.
     this.accessSecret = accessSecret;
     this.accessTtl = process.env.ACCESS_TTL ?? '15m';
     this.refreshTtlMs = this.parseDurationMs(process.env.REFRESH_TTL ?? '30d');
@@ -30,13 +29,16 @@ export class TokenService {
 
   signAccess(user: { id: string; role: string }): string {
     return jwt.sign({ sub: user.id, role: user.role }, this.accessSecret, {
+      algorithm: 'HS256',
       expiresIn: this.accessTtl,
     } as jwt.SignOptions);
   }
 
   verifyAccess(token: string): AccessPayload {
     try {
-      const decoded = jwt.verify(token, this.accessSecret) as AccessPayload;
+      const decoded = jwt.verify(token, this.accessSecret, {
+        algorithms: ['HS256'],
+      }) as AccessPayload;
       return { sub: decoded.sub, role: decoded.role };
     } catch {
       throw new UnauthorizedException('Invalid access token');
