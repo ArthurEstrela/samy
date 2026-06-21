@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { OAuth2Client } from 'google-auth-library';
-import { IdentityClaims, IdentityProvider } from './identity.port';
+import type { IdentityClaims, IdentityProvider } from './identity.port';
 
 @Injectable()
 export class GoogleIdentityProvider implements IdentityProvider {
@@ -29,7 +29,10 @@ export class GoogleIdentityProvider implements IdentityProvider {
         email: payload.email,
         name: payload.name ?? payload.email,
       };
-    } catch {
+    } catch (e) {
+      if (e instanceof UnauthorizedException) {
+        throw e;
+      }
       throw new UnauthorizedException('Invalid Google token');
     }
   }

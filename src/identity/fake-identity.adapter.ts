@@ -1,5 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { IdentityClaims, IdentityProvider } from './identity.port';
+import type { IdentityClaims, IdentityProvider } from './identity.port';
 
 @Injectable()
 export class FakeIdentityProvider implements IdentityProvider {
