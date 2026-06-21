@@ -35,4 +35,14 @@ describe('WalletService.creditRecharge', () => {
     expect(dup.posted).toBe(false);
     expect((await ledger.getBalance('client:1')).toString()).toBe('100');
   });
+
+  it('rejeita recarga com valor não-positivo (defesa em profundidade)', async () => {
+    await expect(
+      wallet.creditRecharge('pix_neg', 'client:1', new Prisma.Decimal('0')),
+    ).rejects.toThrow(/positive/i);
+    await expect(
+      wallet.creditRecharge('pix_neg', 'client:1', new Prisma.Decimal('-5.00')),
+    ).rejects.toThrow(/positive/i);
+    expect((await ledger.getBalance('client:1')).toString()).toBe('0');
+  });
 });

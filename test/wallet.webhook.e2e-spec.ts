@@ -53,4 +53,40 @@ describe('POST /webhooks/psp', () => {
       .send(body)
       .expect(401);
   });
+
+  function postSigned(payload: object): request.Test {
+    const { body, sig } = sign(payload);
+    return request(app.getHttpServer())
+      .post('/webhooks/psp')
+      .set('x-psp-signature', sig)
+      .set('content-type', 'application/json')
+      .send(body);
+  }
+
+  it('rejeita com 400 quando paymentId está ausente (assinatura válida)', async () => {
+    await postSigned({ event: 'payment.confirmed', userId: '7', amount: '10.00' }).expect(400);
+    expect((await ledger.getBalance('client:7')).toString()).toBe('0');
+  });
+
+  it('rejeita com 400 quando userId está em branco', async () => {
+    await postSigned({ event: 'payment.confirmed', paymentId: 'pix_1', userId: '', amount: '10.00' }).expect(400);
+  });
+
+  it('rejeita com 400 quando amount é não-positivo', async () => {
+    await postSigned({ event: 'payment.confirmed', paymentId: 'pix_1', userId: '7', amount: '0' }).expect(400);
+  });
+
+  it('rejeita com 400 quando amount é malformado', async () => {
+    await postSigned({ event: 'payment.confirmed', paymentId: 'pix_1', userId: '7', amount: 'abc' }).expect(400);
+  });
+
+  it('ainda credita com 200 num evento válido após validação', async () => {
+    await postSigned({ event: 'payment.confirmed', paymentId: 'pix_99', userId: '9', amount: '25.00' }).expect(200);
+    expect((await ledger.getBalance('client:9')).toString()).toBe('25');
+  });
+
+  it('eventos não-payment.confirmed retornam 200 sem creditar', async () => {
+    const res = await postSigned({ event: 'payment.pending', paymentId: 'pix_1', userId: '7', amount: '10.00' }).expect(200);
+    expect(res.body).toEqual({ received: true });
+  });
 });

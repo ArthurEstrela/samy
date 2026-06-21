@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { LedgerService } from '../ledger/ledger.service';
 
@@ -11,6 +11,9 @@ export class WalletService {
     account: string,
     amount: Prisma.Decimal,
   ): Promise<{ posted: boolean }> {
+    if (!amount.greaterThan(new Prisma.Decimal(0))) {
+      throw new BadRequestException('amount must be positive');
+    }
     return this.ledger.postTransaction(`recharge:${pspPaymentId}`, [
       { account, entryType: 'RECARGA', amount },
       { account: 'source:external', entryType: 'RECARGA_OFFSET', amount: amount.negated() },

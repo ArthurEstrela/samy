@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Headers,
@@ -20,6 +21,13 @@ interface PspEvent {
   amount: string;
 }
 
+// Positive decimal with up to 2 fractional digits, e.g. "150" or "150.00".
+const POSITIVE_DECIMAL = /^\d+(\.\d{1,2})?$/;
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
 @Controller('webhooks')
 export class WalletController {
   constructor(
@@ -38,13 +46,32 @@ export class WalletController {
     if (!raw || !signature || !this.validator.isValid(raw, signature)) {
       throw new UnauthorizedException('Invalid signature');
     }
-    if (event.event === 'payment.confirmed') {
-      await this.wallet.creditRecharge(
-        event.paymentId,
-        `client:${event.userId}`,
-        new Prisma.Decimal(event.amount),
-      );
+
+    // Non-payment.confirmed events are acknowledged without crediting.
+    if (event?.event !== 'payment.confirmed') {
+      return { received: true };
     }
+
+    // Validate the payload AFTER the HMAC check passes, BEFORE crediting.
+    if (!isNonEmptyString(event.paymentId)) {
+      throw new BadRequestException('paymentId is required');
+    }
+    if (!isNonEmptyString(event.userId)) {
+      throw new BadRequestException('userId is required');
+    }
+    if (
+      typeof event.amount !== 'string' ||
+      !POSITIVE_DECIMAL.test(event.amount) ||
+      !new Prisma.Decimal(event.amount).greaterThan(new Prisma.Decimal(0))
+    ) {
+      throw new BadRequestException('amount must be a positive decimal');
+    }
+
+    await this.wallet.creditRecharge(
+      event.paymentId,
+      `client:${event.userId}`,
+      new Prisma.Decimal(event.amount),
+    );
     return { received: true };
   }
 }
