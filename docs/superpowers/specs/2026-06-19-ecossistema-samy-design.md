@@ -332,7 +332,48 @@ Permite aprender, na prática, quais métricas valeria a pena automatizar depois
 
 ---
 
-## 9. Próximos passos
+## 9. Feature futura — Gifts / Presentes
+
+**Ideia:** presentes/doações da modelo (flores, corações, presentes raros — estilo
+TikTok/Bigo). O cliente compra um presente com créditos e envia para a modelo,
+durante a chamada ou no perfil dela.
+
+**Por que é boa:** é o maior motor de receita das plataformas live. Bate direto na
+tese de impulso — o cliente não sente que "paga por minuto", ele expressa
+desejo/afeto, então gasta mais e com menos dor. Funciona **fora da chamada** também
+(presente no perfil monetiza o tempo ocioso da modelo e gera um gancho de
+notificação — "Fulano te mandou uma rosa 🌹" — que a traz de volta online).
+Gamifica os dois lados (ranking de quem mais presenteia, presentes raros mais caros,
+alertas animados).
+
+**A costura já existe:** um presente é, financeiramente, idêntico a um minuto de
+chamada — uma transação que soma zero com o mesmo split de take rate:
+```
+cliente   -10,00   PRESENTE
+modelo     +6,00   GANHO_PRESENTE
+plataforma +4,00   COMISSAO   (mesma config de take rate da 4.3)
+```
+Isso é exatamente o que `LedgerService.postTransaction` já faz (subsistema Carteira &
+Ledger, implementado). Gifts reusam ledger, saldo, KYC e cash-out existentes — nada
+do motor financeiro é reescrito. É a validação prática da decisão de construir o
+ledger primeiro: monetização nova vira "só mais um tipo de transação".
+
+**Escopo real:** não é um subsistema grande — é uma feature pequena sobre o que já
+existe: um **catálogo de gifts** (tipo, preço, arte/animação), um endpoint `sendGift`
+(que monta a transação soma-zero), e a regra de notificação. O peso de verdade está
+no **front-end** (a animação do presente caindo na tela durante a chamada/perfil),
+não no backend financeiro.
+
+**Decisão de timing:** construir junto do **Billing Engine** (subsistema 3) — os dois
+compartilham exatamente a mesma mecânica de split com take rate, então fazem sentido
+no mesmo ciclo de monetização. Não antes do Billing Engine, porque gift sem o motor
+de cobrança/split formalizado seria duplicar essa lógica.
+
+---
+
+## 10. Próximos passos
 
 Cada subsistema vira seu próprio ciclo spec → plano → implementação, na ordem da
-seção 5. O primeiro a aprofundar é a **Carteira & Ledger**.
+seção 5. O subsistema **Carteira & Ledger já foi implementado** (ver
+`docs/superpowers/plans/2026-06-19-carteira-e-ledger.md`); o próximo a aprofundar é
+**Identidade & Acesso**.
