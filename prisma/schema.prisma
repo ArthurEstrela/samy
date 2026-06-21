@@ -40,3 +40,31 @@ model KycStatus {
 
   @@map("kyc_status")
 }
+
+model User {
+  id              String   @id @default(uuid())
+  role            String
+  provider        String
+  providerSubject String
+  email           String
+  displayName     String
+  status          String
+  createdAt       DateTime @default(now())
+
+  @@unique([provider, providerSubject])
+  @@index([role, status])
+  @@map("users")
+}
+
+model RefreshToken {
+  id            String    @id @default(uuid())
+  userId        String
+  tokenHash     String    @unique
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  revokedReason String?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
