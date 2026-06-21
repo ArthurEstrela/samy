@@ -35,6 +35,11 @@ export class PayoutService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      // Per-account, transaction-scoped advisory lock: concurrent payouts for
+      // the same account serialize here, closing the read-balance/write-debit
+      // TOCTOU window. hashtext returns int4 -> pg_advisory_xact_lock(bigint).
+      // Auto-releases at transaction end.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${account}))`;
       const balance = await this.ledger.getBalance(account, tx);
       if (balance.lessThan(amount)) {
         throw new BadRequestException('Insufficient balance');

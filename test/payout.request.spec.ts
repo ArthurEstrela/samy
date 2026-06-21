@@ -72,4 +72,33 @@ describe('PayoutService.requestPayout', () => {
       payout.requestPayout('model:5', new Prisma.Decimal('300.00'), 'k'),
     ).rejects.toThrow(/saldo|balance/i);
   });
+
+  it('serializa payouts concorrentes da mesma conta (sem double-spend)', async () => {
+    // Cada conta tem saldo suficiente para EXATAMENTE um payout (300, MIN 200,
+    // request 300 x2). Sem lock por conta, o TOCTOU deixa ambos os payouts
+    // passarem (saldo final -300). Várias contas para expor a corrida de forma
+    // determinística independente de timing de conexão.
+    const accounts = ['race:1', 'race:2', 'race:3', 'race:4', 'race:5'];
+
+    for (const acc of accounts) {
+      await prisma.kycStatus.create({ data: { account: acc, approved: true } });
+      await fundModel(acc, '300.00');
+
+      const results = await Promise.allSettled([
+        payout.requestPayout(acc, new Prisma.Decimal('300.00'), 'k'),
+        payout.requestPayout(acc, new Prisma.Decimal('300.00'), 'k'),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter((r) => r.status === 'rejected');
+
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({
+        message: expect.stringMatching(/saldo|balance/i),
+      });
+      // Nunca pode ficar negativo: exatamente um payout debitou os 300.
+      expect((await ledger.getBalance(acc)).toString()).toBe('0');
+    }
+  });
 });
