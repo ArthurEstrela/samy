@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { User } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface CreateUserInput {
@@ -41,8 +41,11 @@ export class UsersService {
   async setStatus(id: string, status: 'ACTIVE' | 'SUSPENDED'): Promise<User> {
     try {
       return await this.prisma.user.update({ where: { id }, data: { status } });
-    } catch {
-      throw new NotFoundException('User not found');
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        throw new NotFoundException('User not found');
+      }
+      throw err;
     }
   }
 
