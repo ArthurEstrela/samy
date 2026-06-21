@@ -34,6 +34,20 @@ entregam os papéis, os estados de conta e os guards.
 - **Refresh token nunca é guardado em claro:** persistir apenas o hash (SHA-256). O token
   cru só existe na resposta HTTP.
 - **Rotação de refresh:** todo uso de refresh revoga o token usado e emite um novo.
+- **Detecção de roubo (reuse detection):** apresentar um refresh token já revogado é tratado
+  como interceptação — revoga TODOS os refresh tokens do `userId` (`SECURITY_RESET`),
+  emite log de severidade alta e responde 401. Cada token carrega `revokedReason`
+  (`ROTATED | LOGOUT | REUSE_DETECTED | SECURITY_RESET`).
+- **Status NUNCA é confiado a partir do JWT:** o access token carrega só `id` + `role`
+  (que praticamente não mudam). O `status` (ACTIVE/SUSPENDED/...) é mutável e crítico —
+  o `JwtAuthGuard` resolve o status corrente do banco em TODA requisição autenticada.
+  Regra única, sem guards "críticos vs não-críticos" (evita esquecer de proteger um).
+  Custo é 1 query/request no MVP; vira cache Redis quando o Redis entrar (adiado).
+- **Race do refresh resolvida no cliente (single-flight):** a concorrência de chamadas
+  paralelas de `/auth/refresh` é responsabilidade do front-end (um refresh em voo por vez;
+  multi-aba coordenada via BroadcastChannel/shared worker). O backend faz rotação estrita +
+  detecção de roubo. Fica "grace-ready": `revokedReason=ROTATED` permite ligar um grace
+  window depois (de preferência no Redis) caso surja um cliente não-controlado.
 - **Segredos por env:** `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `GOOGLE_CLIENT_ID`
   (lidos via env; em produção o boot falha se faltarem — mesmo padrão do `PSP_WEBHOOK_SECRET`).
 - **TTLs por env com default:** access `ACCESS_TTL` (default 15m), refresh `REFRESH_TTL`
@@ -64,12 +78,13 @@ model User {
 }
 
 model RefreshToken {
-  id        String    @id @default(uuid())
-  userId    String
-  tokenHash String    @unique
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
+  id           String    @id @default(uuid())
+  userId       String
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  revokedReason String?  // ROTATED | LOGOUT | REUSE_DETECTED | SECURITY_RESET
+  createdAt    DateTime  @default(now())
 
   @@index([userId])
   @@map("refresh_tokens")
@@ -98,7 +113,7 @@ auth/
   auth.service.ts         loginOrRegister(idToken, role), refresh(token), logout(token)
   token.service.ts        assina/verifica access JWT; cria/rotaciona/revoga refresh (hash)
   auth.controller.ts      POST /auth/google, /auth/refresh, /auth/logout; GET /auth/me
-  jwt-auth.guard.ts       valida access JWT -> injeta req.user
+  jwt-auth.guard.ts       valida access JWT + resolve usuário do banco -> injeta req.user (status fresco)
   roles.guard.ts + roles.decorator.ts   @Roles('ADMIN') etc.
   auth.module.ts
 
@@ -129,17 +144,29 @@ Conflito de papel: como o passo 3 sempre usa o papel existente, uma identidade n
 vira dois papéis. Quem é CLIENT e tenta `role:'MODEL'` simplesmente loga como CLIENT.
 
 ### 6.2 Refresh (`POST /auth/refresh`)
-Body `{ refreshToken }`. Calcula hash, busca em `refresh_tokens`. Inválido / expirado /
-`revokedAt != null` → 401. Senão: marca `revokedAt = now` no antigo, emite novo par
-(rotação), retorna. Usuário SUSPENDED → 401 (e revoga).
+Body `{ refreshToken }`. Calcula o hash e busca em `refresh_tokens`:
+- **Não encontrado / expirado** → 401.
+- **Encontrado e já revogado** (`revokedAt != null`) → **detecção de roubo**: revoga TODOS
+  os refresh tokens ativos do `userId` com `revokedReason=SECURITY_RESET`, emite log de
+  severidade alta (WARN/ERROR com userId e timestamp, sem o token cru) e responde 401.
+  Isso força re-login em todas as sessões daquele usuário.
+- **Encontrado e válido** → rotação: marca `revokedAt = now`, `revokedReason=ROTATED` no
+  antigo e emite novo par. Se o usuário estiver `SUSPENDED`, não emite par novo — revoga e
+  responde 401.
+
+A race de chamadas paralelas é resolvida no cliente (single-flight, ver §3), não no
+servidor. O `revokedReason=ROTATED` deixa o backend grace-ready: um grace window (tolerar
+reuso de um token recém-`ROTATED` por alguns segundos) pode ser ligado depois sem migração,
+de preferência sobre Redis — fora de escopo agora.
 
 ### 6.3 Logout (`POST /auth/logout`)
 Body `{ refreshToken }`. Marca `revokedAt = now`. Idempotente (token já revogado/ausente
 → 200 mesmo assim, sem vazar existência).
 
 ### 6.4 Me (`GET /auth/me`)
-`JwtAuthGuard` valida o access token e injeta `req.user`. Retorna o usuário atual
-(busca por id para refletir status corrente). SUSPENDED → 403.
+`JwtAuthGuard` valida o access token e resolve o usuário corrente do banco (por id),
+injetando `req.user`. Retorna o usuário atual. SUSPENDED → 403. (Como o guard sempre lê o
+banco, um suspend feito no meio da validade do access token reflete na hora — ver §3.)
 
 ### 6.5 Admin (`POST /admin/users/:id/activate|suspend`)
 `JwtAuthGuard` + `RolesGuard('ADMIN')`. `activate` → status `ACTIVE` (usado pelo admin
@@ -148,10 +175,14 @@ Usuário inexistente → 404.
 
 ## 7. Guards entregues aos outros subsistemas
 
-- `JwtAuthGuard` — exige access JWT válido; injeta `req.user = { id, role, status }`.
+- `JwtAuthGuard` — valida o access JWT (assinatura/expiração) E **resolve o usuário do
+  banco por id**, injetando `req.user = { id, role, status }` com o status CORRENTE (não o
+  do payload). Usuário inexistente → 401; `SUSPENDED` → 403 já no guard.
 - `@Roles(...roles)` + `RolesGuard` — exige papel; 403 se não bater.
-- O `status` em `req.user` permite a outros subsistemas impor regras (ex.: Marketplace
-  lista só modelo `ACTIVE`; Chamadas barra `SUSPENDED`).
+- Como o `status` em `req.user` vem sempre fresco do banco, qualquer subsistema pode confiar
+  nele para impor regras (ex.: Marketplace lista só modelo `ACTIVE`; Chamadas barra
+  `SUSPENDED`) sem precisar de checagem extra. Quando o Redis entrar, vira cache com
+  invalidação no `setStatus`.
 
 ## 8. Tratamento de erros
 
@@ -170,13 +201,19 @@ Usuário inexistente → 404.
 4. `role:'ADMIN'` no cadastro é rejeitado (400).
 5. Refresh válido rotaciona: novo par emitido, token antigo fica revogado e não funciona
    numa segunda tentativa (401).
-6. Refresh com token revogado/expirado/inexistente → 401.
-7. Logout revoga o refresh; refresh subsequente → 401; logout repetido → 200.
-8. `GET /auth/me` com access válido retorna o usuário; sem token → 401.
-9. Usuário SUSPENDED: `/auth/me` → 403; refresh → 401.
-10. `RolesGuard`: endpoint admin com usuário CLIENT → 403; com ADMIN → 200.
-11. Admin activate/suspend muda o status; usuário inexistente → 404.
-12. `TokenService` (unitário): refresh é persistido por hash, nunca em claro; access JWT
+6. Refresh com token expirado/inexistente → 401.
+7. **Detecção de roubo:** reapresentar um refresh já revogado (rotacionado) → 401 E todos
+   os refresh tokens ativos do usuário ficam revogados (`SECURITY_RESET`); um outro refresh
+   que estava válido para o mesmo usuário passa a falhar (401), provando o reset global.
+8. Logout revoga o refresh; refresh subsequente → 401; logout repetido → 200.
+9. `GET /auth/me` com access válido retorna o usuário; sem token → 401.
+10. Usuário SUSPENDED: `/auth/me` → 403; refresh → 401.
+11. **Status fresco no guard:** emite access token; admin suspende o usuário; o MESMO access
+    token (ainda não expirado) agora dá 403 em `/auth/me` — prova que o guard lê o banco e
+    não confia no `status` estático do payload.
+12. `RolesGuard`: endpoint admin com usuário CLIENT → 403; com ADMIN → 200.
+13. Admin activate/suspend muda o status; usuário inexistente → 404.
+14. `TokenService` (unitário): refresh é persistido por hash, nunca em claro; access JWT
     assinado/verificado com o segredo correto e rejeitado com segredo errado.
 
 ## 10. Fora de escopo (follow-up / outros subsistemas)
@@ -188,4 +225,12 @@ Usuário inexistente → 404.
   o subsistema entrega a porta + adaptador, validados via fake nos testes.
 - Capacidades por papel (ligar, favoritar, ficar online, sacar) — subsistemas próprios.
 - Rate limiting / proteção a brute force nos endpoints de auth → hardening posterior.
+- **Grace window de refresh no servidor** (tolerar reuso de token recém-`ROTATED`): só vale
+  a pena para clientes não-controlados (API de terceiro / app com interceptor ruim). Por
+  ora a race é resolvida no front (single-flight). O backend já fica grace-ready via
+  `revokedReason`; quando o Redis entrar, é o lugar natural pra esse grace.
+- **Cache Redis** para status do usuário (hoje o guard lê o banco a cada request) e para o
+  grace acima — adiado junto com o Redis do blueprint, com invalidação no `setStatus`.
+- **Single-flight de refresh no front-end** (inclusive coordenação multi-aba via
+  BroadcastChannel/shared worker) — requisito do cliente, não deste subsistema backend.
 ```
