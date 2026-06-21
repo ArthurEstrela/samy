@@ -19,7 +19,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "db:test:push": "dotenv -e .env.test -- prisma db push --skip-generate --accept-data-loss",
-    "test:int": "npm run db:test:push && jest --config ./jest-integration.json --runInBand"
+    "test:int": "npm run db:test:push && jest --config ./jest-integration.json --runInBand",
+    "seed:admin": "ts-node prisma/seed-admin.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
