@@ -4,11 +4,11 @@ import {
   Headers,
   HttpCode,
   Post,
-  RawBodyRequest,
   Req,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Request } from 'express';
+import type { RawBodyRequest } from '@nestjs/common';
+import type { Request } from 'express';
 import { Prisma } from '@prisma/client';
 import { WalletService } from './wallet.service';
 import { PspSignatureValidator } from './psp-signature.validator';
@@ -29,13 +29,12 @@ export class WalletController {
 
   @Post('psp')
   @HttpCode(200)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async handle(
-    @Req() req: any,
+    @Req() req: RawBodyRequest<Request>,
     @Headers('x-psp-signature') signature: string,
     @Body() event: PspEvent,
   ): Promise<{ received: boolean }> {
-    const raw = (req as RawBodyRequest<Request>).rawBody;
+    const raw = req.rawBody;
     if (!raw || !signature || !this.validator.isValid(raw, signature)) {
       throw new UnauthorizedException('Invalid signature');
     }
