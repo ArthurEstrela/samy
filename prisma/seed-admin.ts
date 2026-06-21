@@ -6,14 +6,17 @@ async function main(): Promise<void> {
     throw new Error('usage: seed:admin -- <provider> <subject> <email> <name>');
   }
   const prisma = new PrismaClient();
-  await prisma.user.upsert({
-    where: { provider_providerSubject: { provider, providerSubject: subject } },
-    update: { role: 'ADMIN', status: 'ACTIVE' },
-    create: { role: 'ADMIN', provider, providerSubject: subject, email, displayName: name, status: 'ACTIVE' },
-  });
-  await prisma.$disconnect();
-  // eslint-disable-next-line no-console
-  console.log(`admin garantido: ${provider}:${subject}`);
+  try {
+    await prisma.user.upsert({
+      where: { provider_providerSubject: { provider, providerSubject: subject } },
+      update: { role: 'ADMIN', status: 'ACTIVE' },
+      create: { role: 'ADMIN', provider, providerSubject: subject, email, displayName: name, status: 'ACTIVE' },
+    });
+    // eslint-disable-next-line no-console
+    console.log(`admin garantido: ${provider}:${subject}`);
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 void main();

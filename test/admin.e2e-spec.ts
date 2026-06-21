@@ -62,4 +62,21 @@ describe('Admin endpoints', () => {
     await http().post(`/admin/users/00000000-0000-0000-0000-000000000000/suspend`)
       .set('Authorization', `Bearer ${token}`).expect(404);
   });
+
+  it('sem token → 401 (rota admin exige autenticação)', async () => {
+    const modelId = await makeModel('mod3');
+    await http().post(`/admin/users/${modelId}/activate`).expect(401);
+    const u = await prisma.user.findUnique({ where: { id: modelId } });
+    expect(u?.status).toBe('PENDING_VERIFICATION');
+  });
+
+  it('token de CLIENT → 403 (rota admin exige papel ADMIN)', async () => {
+    fake.register('tok-client', { provider: 'google', subject: 'client1', email: 'client@x.com', name: 'C' });
+    const reg = await http().post('/auth/google').send({ idToken: 'tok-client', role: 'CLIENT' }).expect(201);
+    const clientToken = reg.body.accessToken;
+    const modelId = await makeModel('mod4');
+    await http().post(`/admin/users/${modelId}/suspend`).set('Authorization', `Bearer ${clientToken}`).expect(403);
+    const u = await prisma.user.findUnique({ where: { id: modelId } });
+    expect(u?.status).toBe('PENDING_VERIFICATION');
+  });
 });
