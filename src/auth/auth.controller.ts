@@ -1,6 +1,8 @@
-import { BadRequestException, Body, Controller, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import type { GoogleLoginDto, RefreshDto } from './dto';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import type { AuthUser } from './jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -28,5 +30,11 @@ export class AuthController {
       await this.auth.logout(body.refreshToken);
     }
     return { ok: true };
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  me(@Req() req: { user: AuthUser }): AuthUser {
+    return req.user;
   }
 }
