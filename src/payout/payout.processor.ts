@@ -18,8 +18,23 @@ export class PayoutProcessor {
     });
 
     for (const payout of pending) {
+      // Atomically claim the payout before sending. If another worker already
+      // claimed it (claimed.count === 0), skip — avoids double-send.
+      // TODO: a later story should recover stuck-PROCESSING payouts.
+      const claimed = await this.prisma.payout.updateMany({
+        where: { id: payout.id, status: 'PENDING' },
+        data: { status: 'PROCESSING' },
+      });
+      if (claimed.count !== 1) {
+        continue;
+      }
+
       try {
-        await this.psp.sendPix(payout.pixKey, payout.amount.toString());
+        await this.psp.sendPix(
+          payout.pixKey,
+          payout.amount.toString(),
+          payout.id,
+        );
         await this.prisma.payout.update({
           where: { id: payout.id },
           data: { status: 'PAID', processedAt: new Date() },

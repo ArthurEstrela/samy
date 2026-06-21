@@ -46,12 +46,18 @@ describe('PayoutProcessor', () => {
     return p.id;
   }
 
-  it('marca PAID e chama o PSP em sucesso', async () => {
+  it('marca PAID e chama o PSP com a idempotencyKey em sucesso', async () => {
     const id = await seedAndRequest('model:2');
     await processor.processPending();
     const p = await prisma.payout.findUnique({ where: { id } });
     expect(p?.status).toBe('PAID');
+    expect(p?.processedAt).not.toBeNull();
     expect(fakePsp.sent).toHaveLength(1);
+    expect(fakePsp.sent[0]).toMatchObject({
+      pixKey: 'k',
+      amount: '300',
+      idempotencyKey: id,
+    });
     expect((await ledger.getBalance('model:2')).toString()).toBe('0');
   });
 
@@ -61,6 +67,17 @@ describe('PayoutProcessor', () => {
     await processor.processPending();
     const p = await prisma.payout.findUnique({ where: { id } });
     expect(p?.status).toBe('FAILED');
+    expect(p?.processedAt).not.toBeNull();
     expect((await ledger.getBalance('model:3')).toString()).toBe('300');
+  });
+
+  it('não reprocessa um payout já reivindicado (não PENDING)', async () => {
+    const id = await seedAndRequest('model:7');
+    // simula outro worker que já reivindicou: status PROCESSING
+    await prisma.payout.update({ where: { id }, data: { status: 'PROCESSING' } });
+    await processor.processPending();
+    expect(fakePsp.sent).toHaveLength(0);
+    const p = await prisma.payout.findUnique({ where: { id } });
+    expect(p?.status).toBe('PROCESSING');
   });
 });
