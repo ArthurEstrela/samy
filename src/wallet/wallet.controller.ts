@@ -29,12 +29,13 @@ export class WalletController {
 
   @Post('psp')
   @HttpCode(200)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async handle(
-    @Req() req: RawBodyRequest<Request>,
+    @Req() req: any,
     @Headers('x-psp-signature') signature: string,
     @Body() event: PspEvent,
   ): Promise<{ received: boolean }> {
-    const raw = req.rawBody;
+    const raw = (req as RawBodyRequest<Request>).rawBody;
     if (!raw || !signature || !this.validator.isValid(raw, signature)) {
       throw new UnauthorizedException('Invalid signature');
     }

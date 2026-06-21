@@ -11,8 +11,13 @@ import { PspSignatureValidator } from './psp-signature.validator';
     WalletService,
     {
       provide: PspSignatureValidator,
-      useFactory: (): PspSignatureValidator =>
-        new PspSignatureValidator(process.env.PSP_WEBHOOK_SECRET ?? ''),
+      useFactory: (): PspSignatureValidator => {
+        const secret = process.env.PSP_WEBHOOK_SECRET;
+        if (!secret) {
+          throw new Error('PSP_WEBHOOK_SECRET env var is required');
+        }
+        return new PspSignatureValidator(secret);
+      },
     },
   ],
   exports: [WalletService],
