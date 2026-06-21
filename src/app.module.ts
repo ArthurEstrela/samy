@@ -4,8 +4,18 @@ import { LedgerModule } from './ledger/ledger.module';
 import { WalletModule } from './wallet/wallet.module';
 import { KycModule } from './kyc/kyc.module';
 import { PayoutModule } from './payout/payout.module';
+import { IdentityModule } from './identity/identity.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
-  imports: [PrismaModule, LedgerModule, WalletModule, KycModule, PayoutModule],
+  imports: [
+    PrismaModule,
+    LedgerModule,
+    WalletModule,
+    KycModule,
+    PayoutModule,
+    IdentityModule,
+    UsersModule,
+  ],
 })
 export class AppModule {}
