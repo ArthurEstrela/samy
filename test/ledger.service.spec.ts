@@ -54,4 +54,20 @@ describe('LedgerService', () => {
   it('saldo de conta sem lançamentos é zero', async () => {
     expect((await ledger.getBalance('client:999')).toString()).toBe('0');
   });
+
+  it('propaga P2002 quando o groupRef duplicado roda dentro de uma tx do chamador', async () => {
+    const entries = [
+      { account: 'client:1', entryType: 'RECARGA', amount: new Prisma.Decimal('100.00') },
+      { account: 'source:external', entryType: 'RECARGA_OFFSET', amount: new Prisma.Decimal('-100.00') },
+    ];
+    await ledger.postTransaction('recharge:dup-in-tx', entries);
+
+    // duplicado dentro de uma tx externa NÃO pode virar no-op silencioso:
+    // a violação de unicidade aborta a tx do chamador e deve propagar.
+    await expect(
+      prisma.$transaction(async (tx) => {
+        await ledger.postTransaction('recharge:dup-in-tx', entries, tx);
+      }),
+    ).rejects.toThrow();
+  });
 });

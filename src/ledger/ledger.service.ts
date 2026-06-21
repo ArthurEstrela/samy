@@ -33,12 +33,19 @@ export class LedgerService {
       await client.ledgerEntry.createMany({ data });
     };
 
+    if (tx) {
+      // Caller-managed transaction: a unique violation aborts the caller's
+      // surrounding Postgres transaction. Swallowing it and returning
+      // { posted: false } would leave the caller running inside an aborted
+      // transaction, so we let P2002 (and any error) propagate.
+      await run(tx);
+      return { posted: true };
+    }
+
+    // Self-managed transaction: P2002 means a webhook replay / duplicate
+    // groupRef. Treat it as an idempotent no-op.
     try {
-      if (tx) {
-        await run(tx);
-      } else {
-        await this.prisma.$transaction(run);
-      }
+      await this.prisma.$transaction(run);
       return { posted: true };
     } catch (err) {
       if (
