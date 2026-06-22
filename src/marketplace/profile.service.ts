@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ModelProfile, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { UpsertProfileDto } from './dto';
+import type { UpsertProfileDto } from './dto';
 
 @Injectable()
 export class ProfileService {
