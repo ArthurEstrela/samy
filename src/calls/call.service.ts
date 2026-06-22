@@ -115,17 +115,19 @@ export class CallService {
       throw new NotFoundException('call not found');
     }
     if (txResult.outcome === 'forbidden') {
-      throw new ConflictException('not your call');
+      throw new ForbiddenException('not your call');
     }
     if (txResult.outcome === 'timeout') {
-      await this.prisma.call.update({ where: { id: callId }, data: { status: 'ENDED', endReason: 'TIMEOUT', endedAt: new Date() } });
+      // CAS guard (status REQUESTED) so a concurrent hangup isn't clobbered
+      await this.prisma.call.updateMany({ where: { id: callId, status: 'REQUESTED' }, data: { status: 'ENDED', endReason: 'TIMEOUT', endedAt: new Date() } });
       throw new ConflictException('call expired');
     }
     if (txResult.outcome === 'conflict') {
       throw new ConflictException(txResult.reason);
     }
     if (txResult.outcome === 'no_credits') {
-      await this.prisma.call.update({ where: { id: callId }, data: { status: 'ENDED', endReason: 'NO_CREDITS', endedAt: new Date() } });
+      // CAS guard (status REQUESTED) so a concurrent hangup isn't clobbered
+      await this.prisma.call.updateMany({ where: { id: callId, status: 'REQUESTED' }, data: { status: 'ENDED', endReason: 'NO_CREDITS', endedAt: new Date() } });
       throw new HttpException('insufficient balance', HttpStatus.PAYMENT_REQUIRED);
     }
 
@@ -140,7 +142,7 @@ export class CallService {
       throw new NotFoundException('call not found');
     }
     if (call.modelUserId !== modelId) {
-      throw new ConflictException('not your call');
+      throw new ForbiddenException('not your call');
     }
     const res = await this.prisma.call.updateMany({
       where: { id: callId, status: 'REQUESTED' },
