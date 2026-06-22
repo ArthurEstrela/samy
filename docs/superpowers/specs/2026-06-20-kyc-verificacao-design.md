@@ -27,6 +27,10 @@ aplicar o resultado (liberar/rejeitar), consultar status.
 - Adaptador real do provedor exercitado ponta-a-ponta (precisa de credenciais + front);
   entregamos a porta + adaptador, validados via fake.
 - Limite rígido de tentativas / rate-limiting → hardening posterior.
+- **Reaper de sessões fantasmas:** cronjob futuro que marca como `EXPIRED` as verificações
+  `PENDING` com `sessionExpiresAt` (ou `createdAt`) muito antigas — modelo abandonou no meio
+  e o webhook nunca chegou. Não afeta o MVP (o reuso de sessão do §3 já evita criar sessões
+  novas em cima de PENDING válidas); o status `EXPIRED` já existe no modelo para o reaper usar.
 - **Armazenar qualquer biometria ou imagem de documento** — nunca. A captura acontece no
   provedor; guardamos só resultado + referência.
 
@@ -41,7 +45,13 @@ aplicar o resultado (liberar/rejeitar), consultar status.
 ## 3. Constraints globais (vinculam todas as tasks)
 
 - **Nenhum dado biométrico/documento é recebido ou armazenado pelo backend.** Só
-  `providerRef` (referência opaca da sessão) e o resultado.
+  `providerRef` (referência opaca da sessão), o `clientToken` da sessão e o resultado.
+  (O `clientToken` é um token de sessão de curta duração do provedor — NÃO é biometria nem
+  documento; guardá-lo pelo tempo de vida da sessão é aceitável e necessário para o reuso.)
+- **Reuso de sessão (custo):** provedores cobram por sessão criada. Antes de criar uma nova
+  sessão no `/kyc/start`, reusa-se a verificação `PENDING` mais recente da conta cujo
+  `sessionExpiresAt > agora` — devolvendo o `clientToken` já existente, SEM nova chamada
+  (paga) ao provedor. Só cria sessão nova se não houver PENDING válida.
 - **Webhook autenticado por HMAC-SHA256** do corpo cru, comparação tempo-constante,
   assinatura no header — mesmo molde do `PspSignatureValidator`. Assinatura inválida → 401.
 - **Idempotência:** reprocessar o mesmo resultado de webhook é no-op (não aplica duas vezes).
@@ -65,19 +75,24 @@ aplicar o resultado (liberar/rejeitar), consultar status.
 
 ```prisma
 model KycVerification {
-  id          String    @id @default(uuid())
-  account     String    // model:<userId>
-  userId      String
-  status      String    // PENDING | APPROVED | REJECTED
-  providerRef String    @unique
-  reason      String?   // motivo da rejeição
-  createdAt   DateTime  @default(now())
-  resolvedAt  DateTime?
+  id               String    @id @default(uuid())
+  account          String    // model:<userId>
+  userId           String
+  status           String    // PENDING | APPROVED | REJECTED | EXPIRED
+  providerRef      String    @unique
+  clientToken      String    // token de sessão de curta duração (não é biometria)
+  sessionExpiresAt DateTime  // validade da sessão no provedor (governa reuso)
+  reason           String?   // motivo da rejeição
+  createdAt        DateTime  @default(now())
+  resolvedAt       DateTime?
 
   @@index([account])
   @@map("kyc_verifications")
 }
 ```
+
+`EXPIRED` é um status terminal reservado para o reaper futuro (ver §1 fora-de-escopo);
+este subsistema nunca seta EXPIRED — só PENDING/APPROVED/REJECTED.
 
 `kyc_status` (já existente) permanece como a flag-resultado lida pelo cash-out; este
 subsistema a escreve. Sem FK (consistente com o padrão string-loose-coupling do projeto).
@@ -87,7 +102,7 @@ subsistema a escreve. Sem FK (consistente com o padrão string-loose-coupling do
 ```
 kyc-verification/
   kyc-verification.port.ts       KycVerificationProvider (porta) + KYC_VERIFICATION_PROVIDER token
-                                 createSession(account): Promise<{ providerRef, clientToken }>
+                                 createSession(account): Promise<{ providerRef, clientToken, expiresAt: Date }>
   fake-kyc-verification.adapter.ts   fake p/ testes (gera providerRef/clientToken; sem rede)
   real-kyc-verification.adapter.ts   adaptador real (stub plugável; lê credenciais de env)
   kyc-signature.validator.ts     HMAC-SHA256 do corpo cru (molde do PspSignatureValidator)
@@ -105,9 +120,12 @@ Reusa: `KycModule`/`kyc_status` (escreve via PrismaService), `UsersService.setSt
 ### 6.1 Iniciar verificação (`POST /kyc/start`)
 Guards: `JwtAuthGuard` + `@Roles('MODEL')`. `req.user` traz `{id, role, status}`.
 1. `account = model:<userId>`. Se `kyc_status.approved` já é `true` → 409 (já aprovada).
-2. `provider.createSession(account)` → `{ providerRef, clientToken }`.
-3. Cria `KycVerification` PENDING com `providerRef`.
-4. Retorna `{ verificationId, clientToken, status: 'PENDING' }`.
+2. **Reuso:** busca a `KycVerification` PENDING mais recente da conta com
+   `sessionExpiresAt > agora`. Se existir, retorna o `clientToken` dela (sem chamar o
+   provedor) → `{ verificationId, clientToken, status: 'PENDING' }`. Fim.
+3. Senão: `provider.createSession(account)` → `{ providerRef, clientToken, expiresAt }`.
+4. Cria `KycVerification` PENDING com `providerRef`, `clientToken`, `sessionExpiresAt = expiresAt`.
+5. Retorna `{ verificationId, clientToken, status: 'PENDING' }`.
 
 ### 6.2 Resultado do provedor (`POST /webhooks/kyc`)
 Sem guard de papel; autenticado por assinatura.
@@ -141,6 +159,10 @@ Guards: `JwtAuthGuard` + `@Roles('MODEL')`. Retorna a verificação mais recente
 1. MODEL inicia KYC → cria `KycVerification` PENDING e retorna `clientToken`.
 2. CLIENT no `/kyc/start` → 403.
 3. Modelo já aprovada (`kyc_status.approved=true`) iniciando de novo → 409.
+3b. **Reuso de sessão:** chamar `/kyc/start` duas vezes seguidas (sessão ainda válida)
+    retorna o MESMO `clientToken`/`providerRef`, cria só UMA linha PENDING, e o provedor
+    (fake) tem `createSession` chamado UMA vez só. Quando a sessão expira
+    (`sessionExpiresAt < agora`), um novo `/kyc/start` cria uma nova sessão.
 4. Webhook APPROVED → verificação APPROVED, `kyc_status.approved=true`, usuário
    `PENDING_VERIFICATION → ACTIVE`.
 5. Webhook APPROVED com usuário `SUSPENDED` → `kyc_status.approved=true` mas usuário
