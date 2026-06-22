@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthUser } from '../auth/jwt-auth.guard';
@@ -31,5 +31,21 @@ export class CallController {
   @Roles('MODEL')
   async reject(@Req() req: Request & { user: AuthUser }, @Param('id') id: string): Promise<unknown> {
     return this.calls.reject(id, req.user.id);
+  }
+
+  @Post(':id/hangup')
+  async hangup(@Req() req: Request & { user: AuthUser }, @Param('id') id: string): Promise<unknown> {
+    return this.calls.hangup(id, req.user.id);
+  }
+
+  @Post(':id/panic')
+  @Roles('MODEL')
+  async panic(@Req() req: Request & { user: AuthUser }, @Param('id') id: string): Promise<unknown> {
+    return this.calls.panic(id, req.user.id);
+  }
+
+  @Get(':id')
+  async get(@Req() req: Request & { user: AuthUser }, @Param('id') id: string): Promise<unknown> {
+    return this.calls.getForParticipant(id, req.user.id, req.user.role);
   }
 }

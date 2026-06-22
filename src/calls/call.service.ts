@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Inject,
@@ -149,6 +150,74 @@ export class CallService {
       throw new ConflictException('call not pending');
     }
     return this.prisma.call.findUniqueOrThrow({ where: { id: callId } });
+  }
+
+  async hangup(callId: string, userId: string): Promise<Call> {
+    const call = await this.prisma.call.findUnique({ where: { id: callId } });
+    if (!call) {
+      throw new NotFoundException('call not found');
+    }
+    if (call.clientUserId !== userId && call.modelUserId !== userId) {
+      throw new ForbiddenException('not a participant');
+    }
+    if (call.status === 'ENDED') {
+      return call; // idempotente
+    }
+    const reason = call.clientUserId === userId ? 'HANGUP_CLIENT' : 'HANGUP_MODEL';
+    await this.prisma.call.updateMany({
+      where: { id: callId, status: { not: 'ENDED' } },
+      data: { status: 'ENDED', endReason: reason, endedAt: new Date() },
+    });
+    return this.prisma.call.findUniqueOrThrow({ where: { id: callId } });
+  }
+
+  async panic(callId: string, modelId: string): Promise<Call> {
+    const call = await this.prisma.call.findUnique({ where: { id: callId } });
+    if (!call) {
+      throw new NotFoundException('call not found');
+    }
+    if (call.modelUserId !== modelId) {
+      throw new ForbiddenException('not a participant');
+    }
+    await this.prisma.call.updateMany({
+      where: { id: callId, status: { not: 'ENDED' } },
+      data: { status: 'ENDED', endReason: 'PANIC', endedAt: new Date() },
+    });
+    return this.prisma.call.findUniqueOrThrow({ where: { id: callId } });
+  }
+
+  async endCall(callId: string, reason: string): Promise<void> {
+    await this.prisma.call.updateMany({
+      where: { id: callId, status: { not: 'ENDED' } },
+      data: { status: 'ENDED', endReason: reason, endedAt: new Date() },
+    });
+  }
+
+  async getForParticipant(
+    callId: string,
+    userId: string,
+    role: string,
+  ): Promise<{ call: Call; media?: MediaToken }> {
+    let call = await this.prisma.call.findUnique({ where: { id: callId } });
+    if (!call) {
+      throw new NotFoundException('call not found');
+    }
+    if (call.clientUserId !== userId && call.modelUserId !== userId) {
+      throw new ForbiddenException('not a participant');
+    }
+    if (call.status === 'REQUESTED' && this.isExpired(call.requestedAt)) {
+      await this.prisma.call.updateMany({
+        where: { id: callId, status: 'REQUESTED' },
+        data: { status: 'ENDED', endReason: 'TIMEOUT', endedAt: new Date() },
+      });
+      call = await this.prisma.call.findUniqueOrThrow({ where: { id: callId } });
+    }
+    if (call.status === 'ACTIVE' && call.roomName) {
+      const identity = role === 'MODEL' ? `model:${userId}` : `client:${userId}`;
+      const media = await this.media.issueToken(call.roomName, identity);
+      return { call, media };
+    }
+    return { call };
   }
 
   private async lock(tx: Prisma.TransactionClient, keys: string[]): Promise<void> {
