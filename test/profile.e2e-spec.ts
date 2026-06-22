@@ -39,9 +39,10 @@ describe('Profile', () => {
   it('MODEL faz upsert e lê o próprio perfil', async () => {
     const token = await login('mod1', 'MODEL');
     await http().put('/me/profile').set('Authorization', `Bearer ${token}`)
-      .send({ bio: 'oi', pricePerMinute: '5.00', tags: ['noturno'], voicePreviewUrl: 'https://cdn.x/a.mp3' })
+      .send({ stageName: 'Luna', bio: 'oi', pricePerMinute: '5.00', tags: ['noturno'], voicePreviewUrl: 'https://cdn.x/a.mp3' })
       .expect(200);
     const got = await http().get('/me/profile').set('Authorization', `Bearer ${token}`).expect(200);
+    expect(got.body.stageName).toBe('Luna');
     expect(got.body.pricePerMinute).toBe('5');
     expect(got.body.tags).toEqual(['noturno']);
   });
@@ -51,17 +52,25 @@ describe('Profile', () => {
     await http().get('/me/profile').set('Authorization', `Bearer ${token}`).expect(404);
   });
 
+  it('stageName ausente/vazio → 400', async () => {
+    const token = await login('mod3b', 'MODEL');
+    await http().put('/me/profile').set('Authorization', `Bearer ${token}`)
+      .send({ pricePerMinute: '5.00' }).expect(400);
+    await http().put('/me/profile').set('Authorization', `Bearer ${token}`)
+      .send({ stageName: '   ', pricePerMinute: '5.00' }).expect(400);
+  });
+
   it('pricePerMinute <= 0 → 400; voicePreviewUrl inválida → 400', async () => {
     const token = await login('mod3', 'MODEL');
     await http().put('/me/profile').set('Authorization', `Bearer ${token}`)
-      .send({ pricePerMinute: '0' }).expect(400);
+      .send({ stageName: 'Luna', pricePerMinute: '0' }).expect(400);
     await http().put('/me/profile').set('Authorization', `Bearer ${token}`)
-      .send({ pricePerMinute: '5.00', voicePreviewUrl: 'not-a-url' }).expect(400);
+      .send({ stageName: 'Luna', pricePerMinute: '5.00', voicePreviewUrl: 'not-a-url' }).expect(400);
   });
 
   it('CLIENT em /me/profile → 403; sem token → 401', async () => {
     const token = await login('cli1', 'CLIENT');
-    await http().put('/me/profile').set('Authorization', `Bearer ${token}`).send({ pricePerMinute: '5.00' }).expect(403);
+    await http().put('/me/profile').set('Authorization', `Bearer ${token}`).send({ stageName: 'X', pricePerMinute: '5.00' }).expect(403);
     await http().get('/me/profile').expect(401);
   });
 

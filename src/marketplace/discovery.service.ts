@@ -9,7 +9,7 @@ const DEFAULT_LIMIT = 50;
 
 export interface ModelCard {
   userId: string;
-  displayName: string;
+  stageName: string;
   bio: string | null;
   pricePerMinute: string;
   tags: string[];
@@ -52,9 +52,8 @@ export class DiscoveryService {
 
     const activeUsers = await this.prisma.user.findMany({
       where: { role: 'MODEL', status: 'ACTIVE' },
-      select: { id: true, displayName: true },
+      select: { id: true },
     });
-    const userById = new Map(activeUsers.map((u) => [u.id, u]));
     const activeIds = activeUsers.map((u) => u.id);
 
     const profiles = await this.prisma.modelProfile.findMany({
@@ -74,7 +73,7 @@ export class DiscoveryService {
         : new Set<string>();
 
     const cards = candidates.map((p) =>
-      this.toCard(p, userById.get(p.userId)!.displayName, presence[p.userId] === 'ONLINE', favoriteIds.has(p.userId)),
+      this.toCard(p, presence[p.userId] === 'ONLINE', favoriteIds.has(p.userId)),
     );
 
     cards.sort((a, b) => {
@@ -97,18 +96,17 @@ export class DiscoveryService {
       requester.role === 'CLIENT'
         ? new Set(await this.favorites.listFavoriteModelIds(requester.id)).has(modelId)
         : false;
-    return this.toCard(profile, user.displayName, isOnline, isFavorite);
+    return this.toCard(profile, isOnline, isFavorite);
   }
 
   private toCard(
-    p: { userId: string; bio: string | null; pricePerMinute: { toString(): string }; tags: string[]; voicePreviewUrl: string | null },
-    displayName: string,
+    p: { userId: string; stageName: string; bio: string | null; pricePerMinute: { toString(): string }; tags: string[]; voicePreviewUrl: string | null },
     isOnline: boolean,
     isFavorite: boolean,
   ): ModelCard {
     return {
       userId: p.userId,
-      displayName,
+      stageName: p.stageName,
       bio: p.bio,
       pricePerMinute: p.pricePerMinute.toString(),
       tags: p.tags,

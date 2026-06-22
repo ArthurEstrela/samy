@@ -62,6 +62,8 @@ fica **online** em tempo real, e o cliente **descobre/filtra/favorita** modelos.
 ```prisma
 model ModelProfile {
   userId          String   @id            // o User MODEL dono do perfil (1:1)
+  stageName       String                  // nome artístico PÚBLICO (preserva anonimato:
+                                          // o User.displayName do Google fica interno)
   bio             String?
   pricePerMinute  Decimal  @db.Decimal(14, 2)
   tags            String[]                // filtro de descoberta (Postgres text[])

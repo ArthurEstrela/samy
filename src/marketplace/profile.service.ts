@@ -8,6 +8,9 @@ export class ProfileService {
   constructor(private readonly prisma: PrismaService) {}
 
   async upsert(userId: string, dto: UpsertProfileDto): Promise<ModelProfile> {
+    if (typeof dto.stageName !== 'string' || dto.stageName.trim().length === 0) {
+      throw new BadRequestException('stageName is required');
+    }
     let price: Prisma.Decimal;
     try {
       price = new Prisma.Decimal(dto.pricePerMinute);
@@ -29,10 +32,11 @@ export class ProfileService {
       throw new BadRequestException('bio must be a string');
     }
     const tags = dto.tags ?? [];
+    const stageName = dto.stageName.trim();
     return this.prisma.modelProfile.upsert({
       where: { userId },
-      create: { userId, bio: dto.bio, pricePerMinute: price, tags, voicePreviewUrl: dto.voicePreviewUrl },
-      update: { bio: dto.bio, pricePerMinute: price, tags, voicePreviewUrl: dto.voicePreviewUrl },
+      create: { userId, stageName, bio: dto.bio, pricePerMinute: price, tags, voicePreviewUrl: dto.voicePreviewUrl },
+      update: { stageName, bio: dto.bio, pricePerMinute: price, tags, voicePreviewUrl: dto.voicePreviewUrl },
     });
   }
 

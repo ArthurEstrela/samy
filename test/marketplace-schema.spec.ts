@@ -10,7 +10,7 @@ describe('marketplace schema', () => {
 
   it('cria perfil com tags (text[]) e preço decimal', async () => {
     const p = await prisma.modelProfile.create({
-      data: { userId: 'u1', pricePerMinute: new Prisma.Decimal('5.00'), tags: ['voz-suave', 'noturno'] },
+      data: { userId: 'u1', stageName: 'Luna', pricePerMinute: new Prisma.Decimal('5.00'), tags: ['voz-suave', 'noturno'] },
     });
     expect(p.tags).toEqual(['voz-suave', 'noturno']);
     expect(p.pricePerMinute.toString()).toBe('5');

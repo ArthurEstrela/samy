@@ -87,6 +87,7 @@ model KycVerification {
 
 model ModelProfile {
   userId          String   @id
+  stageName       String
   bio             String?
   pricePerMinute  Decimal  @db.Decimal(14, 2)
   tags            String[]

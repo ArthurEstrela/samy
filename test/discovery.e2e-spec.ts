@@ -45,7 +45,7 @@ describe('Discovery', () => {
     const m = await login(sub, 'MODEL');
     await prisma.user.update({ where: { id: m.id }, data: { status: 'ACTIVE' } });
     await prisma.modelProfile.create({
-      data: { userId: m.id, pricePerMinute: new Prisma.Decimal('5.00'), tags: opts.tags ?? [], createdAt: opts.createdAt ?? new Date() },
+      data: { userId: m.id, stageName: `Stage-${sub}`, pricePerMinute: new Prisma.Decimal('5.00'), tags: opts.tags ?? [], createdAt: opts.createdAt ?? new Date() },
     });
     return m.id;
   }
@@ -94,6 +94,8 @@ describe('Discovery', () => {
     const client = await login('c5', 'CLIENT');
     const ok = await http().get(`/models/${m}`).set('Authorization', `Bearer ${client.token}`).expect(200);
     expect(ok.body.userId).toBe(m);
+    expect(ok.body.stageName).toBe('Stage-a5');
+    expect(ok.body.displayName).toBeUndefined();
     await http().get(`/models/${pending.id}`).set('Authorization', `Bearer ${client.token}`).expect(404);
   });
 
