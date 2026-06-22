@@ -34,17 +34,24 @@ export class BillingService {
       }
       await this.lock(tx, `call-client:${call.clientUserId}`);
 
+      // Re-read under the lock so the status is authoritative (a concurrent
+      // hangup/end between the pre-lock read and the lock won't be charged).
+      const fresh = await tx.call.findUnique({ where: { id: callId } });
+      if (!fresh) {
+        return { charged: false, reason: 'not_found' };
+      }
+
       const group = `call:${callId}:min:${minuteNumber}`;
       const existing = await tx.ledgerEntry.findFirst({ where: { transactionGroup: group } });
       if (existing) {
         return { charged: false, alreadyCharged: true };
       }
-      if (call.status !== 'ACTIVE') {
+      if (fresh.status !== 'ACTIVE') {
         return { charged: false, reason: 'not_active' };
       }
 
-      const price = call.pricePerMinuteSnapshot;
-      const balance = await this.ledger.getBalance(`client:${call.clientUserId}`, tx);
+      const price = fresh.pricePerMinuteSnapshot;
+      const balance = await this.ledger.getBalance(`client:${fresh.clientUserId}`, tx);
       if (balance.lessThan(price)) {
         await tx.call.updateMany({
           where: { id: callId, status: 'ACTIVE' },
@@ -53,14 +60,14 @@ export class BillingService {
         return { charged: false, ended: true };
       }
 
-      const profile = await tx.modelProfile.findUnique({ where: { userId: call.modelUserId } });
+      const profile = await tx.modelProfile.findUnique({ where: { userId: fresh.modelUserId } });
       const takeRate = resolveTakeRate(profile?.takeRate ?? null, this.globalTakeRate);
       const { commission, modelShare } = computeSplit(price, takeRate);
       await this.ledger.postTransaction(
         group,
         [
-          { account: `client:${call.clientUserId}`, entryType: 'CONSUMO_MIN', amount: price.negated() },
-          { account: `model:${call.modelUserId}`, entryType: 'GANHO_MIN', amount: modelShare },
+          { account: `client:${fresh.clientUserId}`, entryType: 'CONSUMO_MIN', amount: price.negated() },
+          { account: `model:${fresh.modelUserId}`, entryType: 'GANHO_MIN', amount: modelShare },
           { account: 'platform', entryType: 'COMISSAO', amount: commission },
         ],
         tx,
