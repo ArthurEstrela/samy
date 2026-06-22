@@ -112,7 +112,7 @@ export class BillingService {
   }
 
   listGiftCatalog(): Promise<GiftType[]> {
-    return this.prisma.giftType.findMany({ where: { active: true } });
+    return this.prisma.giftType.findMany({ where: { active: true }, orderBy: { priceCredits: 'asc' } });
   }
 
   private async lock(tx: Prisma.TransactionClient, key: string): Promise<void> {

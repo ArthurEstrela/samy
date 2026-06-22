@@ -21,6 +21,8 @@ describe('BillingService.chargeMinute', () => {
     billing = mod.get(BillingService);
   });
   beforeEach(async () => {
+    await prisma.gift.deleteMany();
+    await prisma.giftType.deleteMany();
     await prisma.call.deleteMany();
     await prisma.ledgerEntry.deleteMany();
     await prisma.modelProfile.deleteMany();
@@ -95,16 +97,22 @@ describe('BillingService.chargeMinute', () => {
     expect(await bal(`model:${modelId}`)).toBe('3.5');
   });
 
-  it('serialização: chargeMinute + outra op concorrente não deixam o saldo negativo', async () => {
-    const { callId, clientId } = await setup({ price: '5.00', credit: '5.00' });
-    // dois chargeMinute concorrentes de minutos DIFERENTES, saldo só p/ 1
+  it('serialização: chargeMinute + sendGift concorrentes não estouram o saldo (sem o lock daria -5)', async () => {
+    // Saldo cobre EXATAMENTE uma operação de 5; minuto (5) e gift (5) disparados juntos.
+    // Sem o advisory lock por cliente, os dois leriam saldo 5 e ambos debitariam -> -5.
+    const { callId, clientId, modelId } = await setup({ price: '5.00', credit: '5.00' });
+    const gt = await prisma.giftType.create({ data: { name: 'Rosa', priceCredits: new Prisma.Decimal('5.00') } });
     const [r1, r2] = await Promise.allSettled([
       billing.chargeMinute(callId, 1),
-      billing.chargeMinute(callId, 2),
+      billing.sendGift(clientId, modelId, gt.id),
     ]);
-    const charged = [r1, r2].filter((r) => r.status === 'fulfilled' && r.value.charged === true);
-    expect(charged).toHaveLength(1); // só um minuto coube; o outro encerrou/não cobrou
+    // exatamente uma operação debitou (a outra é barrada por saldo): saldo == 0, nunca negativo
     const balance = await ledger.getBalance(`client:${clientId}`);
+    expect(balance.toString()).toBe('0');
     expect(balance.greaterThanOrEqualTo(0)).toBe(true);
+    // uma das duas teve sucesso, a outra falhou/não-cobrou (não as duas)
+    const minuteCharged = r1.status === 'fulfilled' && r1.value.charged === true;
+    const giftSent = r2.status === 'fulfilled';
+    expect(minuteCharged !== giftSent).toBe(true);
   });
 });
