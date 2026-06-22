@@ -31,7 +31,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   async getStatus(modelId: string): Promise<Presence> {
     const v = await this.client.get(key(modelId));
-    return v ? 'ONLINE' : 'OFFLINE';
+    return v === 'ONLINE' ? 'ONLINE' : 'OFFLINE';
   }
 
   async getStatuses(modelIds: string[]): Promise<Record<string, Presence>> {
@@ -41,7 +41,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
     const values = await this.client.mget(...modelIds.map(key));
     modelIds.forEach((id, i) => {
-      out[id] = values[i] ? 'ONLINE' : 'OFFLINE';
+      out[id] = values[i] === 'ONLINE' ? 'ONLINE' : 'OFFLINE';
     });
     return out;
   }
