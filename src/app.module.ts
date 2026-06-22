@@ -12,6 +12,7 @@ import { KycVerificationModule } from './kyc-verification/kyc-verification.modul
 import { RedisModule } from './redis/redis.module';
 import { MarketplaceModule } from './marketplace/marketplace.module';
 import { CallsModule } from './calls/calls.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { CallsModule } from './calls/calls.module';
     RedisModule,
     MarketplaceModule,
     CallsModule,
+    BillingModule,
   ],
 })
 export class AppModule {}
