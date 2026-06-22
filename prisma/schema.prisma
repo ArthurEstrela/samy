@@ -92,6 +92,7 @@ model ModelProfile {
   pricePerMinute  Decimal  @db.Decimal(14, 2)
   tags            String[]
   voicePreviewUrl String?
+  takeRate        Decimal? @db.Decimal(5, 4)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -125,4 +126,26 @@ model Call {
   @@index([modelUserId, status])
   @@index([clientUserId, status])
   @@map("calls")
+}
+
+model GiftType {
+  id           String   @id @default(uuid())
+  name         String
+  priceCredits Decimal  @db.Decimal(14, 2)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@map("gift_types")
+}
+
+model Gift {
+  id            String   @id @default(uuid())
+  clientUserId  String
+  modelUserId   String
+  giftTypeId    String
+  priceSnapshot Decimal  @db.Decimal(14, 2)
+  createdAt     DateTime @default(now())
+
+  @@index([modelUserId])
+  @@map("gifts")
 }
