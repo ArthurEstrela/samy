@@ -8,6 +8,7 @@ import { IdentityModule } from './identity/identity.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
+import { KycVerificationModule } from './kyc-verification/kyc-verification.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AdminModule } from './admin/admin.module';
     UsersModule,
     AuthModule,
     AdminModule,
+    KycVerificationModule,
   ],
 })
 export class AppModule {}
