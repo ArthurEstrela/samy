@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Headers,
@@ -36,9 +37,16 @@ export class KycWebhookController {
     if (!raw || !signature || !this.validator.isValid(raw, signature)) {
       throw new UnauthorizedException('Invalid signature');
     }
+    // Corpo é autenticado por HMAC, mas ainda pode vir malformado do provedor:
+    // valide a forma antes de tocar o banco (providerRef inválido viraria 500 no Prisma).
     if (event.outcome === 'APPROVED' || event.outcome === 'REJECTED') {
-      await this.kyc.applyResult(event.providerRef, event.outcome, event.reason);
+      if (typeof event.providerRef !== 'string' || event.providerRef.length === 0) {
+        throw new BadRequestException('providerRef is required');
+      }
+      const reason = typeof event.reason === 'string' ? event.reason : undefined;
+      await this.kyc.applyResult(event.providerRef, event.outcome, reason);
     }
+    // outcome desconhecido (ex: eventos que não nos interessam) → 200 no-op.
     return { received: true };
   }
 }

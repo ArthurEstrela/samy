@@ -75,6 +75,8 @@ export class KycVerificationService {
         update: { approved: true },
         create: { account: v.account, approved: true },
       });
+      // Promoção feita inline na transação (não via UsersService.setStatus) de propósito:
+      // setStatus abre a própria conexão e quebraria a atomicidade com o kyc_status acima.
       const user = await tx.user.findUnique({ where: { id: v.userId } });
       if (user && user.status === 'PENDING_VERIFICATION') {
         await tx.user.update({ where: { id: v.userId }, data: { status: 'ACTIVE' } });

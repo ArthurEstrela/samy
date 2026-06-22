@@ -80,4 +80,14 @@ describe('POST /webhooks/kyc', () => {
     const { body, sig } = sign({ providerRef: 'nope', outcome: 'APPROVED' });
     await http().post('/webhooks/kyc').set('x-kyc-signature', sig).set('content-type', 'application/json').send(body).expect(200);
   });
+
+  it('payload assinado mas malformado (sem providerRef) → 400, não 500', async () => {
+    const { body, sig } = sign({ outcome: 'APPROVED' });
+    await http().post('/webhooks/kyc').set('x-kyc-signature', sig).set('content-type', 'application/json').send(body).expect(400);
+  });
+
+  it('outcome desconhecido → 200 no-op', async () => {
+    const { body, sig } = sign({ providerRef: 'whatever', outcome: 'SESSION_STARTED' });
+    await http().post('/webhooks/kyc').set('x-kyc-signature', sig).set('content-type', 'application/json').send(body).expect(200);
+  });
 });
