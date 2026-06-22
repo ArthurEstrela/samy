@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthUser } from '../auth/jwt-auth.guard';
@@ -19,5 +19,17 @@ export class CallController {
   @Roles('CLIENT')
   async initiate(@Req() req: Request & { user: AuthUser }, @Body() dto: InitiateDto): Promise<unknown> {
     return this.calls.initiate(req.user.id, dto.modelId);
+  }
+
+  @Post(':id/accept')
+  @Roles('MODEL')
+  async accept(@Req() req: Request & { user: AuthUser }, @Param('id') id: string): Promise<unknown> {
+    return this.calls.accept(id, req.user.id);
+  }
+
+  @Post(':id/reject')
+  @Roles('MODEL')
+  async reject(@Req() req: Request & { user: AuthUser }, @Param('id') id: string): Promise<unknown> {
+    return this.calls.reject(id, req.user.id);
   }
 }

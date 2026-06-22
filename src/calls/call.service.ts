@@ -7,6 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Call, Prisma } from '@prisma/client';
+import type { MediaToken } from './media-server.port';
 import { PrismaService } from '../prisma/prisma.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { RedisService } from '../redis/redis.service';
@@ -66,6 +67,88 @@ export class CallService {
         },
       });
     });
+  }
+
+  async accept(callId: string, modelId: string): Promise<{ call: Call; media: MediaToken }> {
+    type TxResult =
+      | { outcome: 'active'; call: Call }
+      | { outcome: 'no_credits'; clientUserId: string }
+      | { outcome: 'timeout'; clientUserId: string }
+      | { outcome: 'not_found' }
+      | { outcome: 'forbidden' }
+      | { outcome: 'conflict'; reason: string };
+
+    const txResult = await this.prisma.$transaction(async (tx): Promise<TxResult> => {
+      const found = await tx.call.findUnique({ where: { id: callId } });
+      if (!found) return { outcome: 'not_found' };
+      if (found.modelUserId !== modelId) return { outcome: 'forbidden' };
+      await this.lock(tx, [`call-client:${found.clientUserId}`]);
+      const call = await tx.call.findUnique({ where: { id: callId } });
+      if (!call) return { outcome: 'not_found' };
+      if (call.status === 'REQUESTED' && this.isExpired(call.requestedAt)) {
+        return { outcome: 'timeout', clientUserId: call.clientUserId };
+      }
+      if (call.status !== 'REQUESTED') {
+        return { outcome: 'conflict', reason: 'call not pending' };
+      }
+      const otherActive = await tx.call.findFirst({
+        where: { clientUserId: call.clientUserId, status: 'ACTIVE', id: { not: callId } },
+      });
+      if (otherActive) {
+        return { outcome: 'conflict', reason: 'client already in a call' };
+      }
+      const balance = await this.ledger.getBalance(`client:${call.clientUserId}`, tx);
+      if (balance.lessThan(call.pricePerMinuteSnapshot)) {
+        return { outcome: 'no_credits', clientUserId: call.clientUserId };
+      }
+      const roomName = `call:${callId}`;
+      const active = await tx.call.update({
+        where: { id: callId },
+        data: { status: 'ACTIVE', startedAt: new Date(), roomName },
+      });
+      return { outcome: 'active', call: active };
+    });
+
+    // Handle outcomes that require writes outside the tx (so they are not rolled back)
+    if (txResult.outcome === 'not_found') {
+      throw new NotFoundException('call not found');
+    }
+    if (txResult.outcome === 'forbidden') {
+      throw new ConflictException('not your call');
+    }
+    if (txResult.outcome === 'timeout') {
+      await this.prisma.call.update({ where: { id: callId }, data: { status: 'ENDED', endReason: 'TIMEOUT', endedAt: new Date() } });
+      throw new ConflictException('call expired');
+    }
+    if (txResult.outcome === 'conflict') {
+      throw new ConflictException(txResult.reason);
+    }
+    if (txResult.outcome === 'no_credits') {
+      await this.prisma.call.update({ where: { id: callId }, data: { status: 'ENDED', endReason: 'NO_CREDITS', endedAt: new Date() } });
+      throw new HttpException('insufficient balance', HttpStatus.PAYMENT_REQUIRED);
+    }
+
+    // outcome === 'active'
+    const media = await this.media.issueToken(txResult.call.roomName as string, `model:${modelId}`);
+    return { call: txResult.call, media };
+  }
+
+  async reject(callId: string, modelId: string): Promise<Call> {
+    const call = await this.prisma.call.findUnique({ where: { id: callId } });
+    if (!call) {
+      throw new NotFoundException('call not found');
+    }
+    if (call.modelUserId !== modelId) {
+      throw new ConflictException('not your call');
+    }
+    const res = await this.prisma.call.updateMany({
+      where: { id: callId, status: 'REQUESTED' },
+      data: { status: 'ENDED', endReason: 'REJECTED', endedAt: new Date() },
+    });
+    if (res.count === 0) {
+      throw new ConflictException('call not pending');
+    }
+    return this.prisma.call.findUniqueOrThrow({ where: { id: callId } });
   }
 
   private async lock(tx: Prisma.TransactionClient, keys: string[]): Promise<void> {
