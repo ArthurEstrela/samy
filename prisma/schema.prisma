@@ -68,3 +68,19 @@ model RefreshToken {
   @@index([userId])
   @@map("refresh_tokens")
 }
+
+model KycVerification {
+  id               String    @id @default(uuid())
+  account          String
+  userId           String
+  status           String
+  providerRef      String    @unique
+  clientToken      String
+  sessionExpiresAt DateTime
+  reason           String?
+  createdAt        DateTime  @default(now())
+  resolvedAt       DateTime?
+
+  @@index([account])
+  @@map("kyc_verifications")
+}
