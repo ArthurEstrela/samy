@@ -101,4 +101,9 @@ describe('Discovery', () => {
     const client = await login('c6', 'CLIENT');
     await http().get('/models?limit=999').set('Authorization', `Bearer ${client.token}`).expect(400);
   });
+
+  it('limit não-numérico (NaN) → 400, não lista vazia silenciosa', async () => {
+    const client = await login('c7', 'CLIENT');
+    await http().get('/models?limit=abc').set('Authorization', `Bearer ${client.token}`).expect(400);
+  });
 });

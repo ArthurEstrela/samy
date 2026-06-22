@@ -40,7 +40,13 @@ export class DiscoveryService {
   async list(params: ListParams, requester: Requester): Promise<ModelCard[]> {
     const limit = params.limit ?? DEFAULT_LIMIT;
     const offset = params.offset ?? 0;
-    if (limit < 1 || limit > MAX_LIMIT || offset < 0) {
+    if (
+      !Number.isFinite(limit) ||
+      !Number.isFinite(offset) ||
+      limit < 1 ||
+      limit > MAX_LIMIT ||
+      offset < 0
+    ) {
       throw new BadRequestException('invalid limit/offset');
     }
 
@@ -84,7 +90,7 @@ export class DiscoveryService {
     const isOnline = (await this.presence.getStatus(modelId)) === 'ONLINE';
     const isFavorite =
       requester.role === 'CLIENT'
-        ? (await this.favorites.listFavoriteModelIds(requester.id)).includes(modelId)
+        ? new Set(await this.favorites.listFavoriteModelIds(requester.id)).has(modelId)
         : false;
     return this.toCard(profile, user.displayName, isOnline, isFavorite);
   }
