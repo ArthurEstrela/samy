@@ -6,11 +6,13 @@ import { ProfileService } from './profile.service';
 import { ProfileController } from './profile.controller';
 import { PresenceService } from './presence.service';
 import { PresenceController } from './presence.controller';
+import { FavoritesService } from './favorites.service';
+import { FavoritesController } from './favorites.controller';
 
 @Module({
   imports: [PrismaModule, AuthModule, UsersModule],
-  controllers: [ProfileController, PresenceController],
-  providers: [ProfileService, PresenceService],
-  exports: [ProfileService, PresenceService],
+  controllers: [ProfileController, PresenceController, FavoritesController],
+  providers: [ProfileService, PresenceService, FavoritesService],
+  exports: [ProfileService, PresenceService, FavoritesService],
 })
 export class MarketplaceModule {}
