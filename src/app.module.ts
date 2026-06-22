@@ -9,6 +9,8 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
 import { KycVerificationModule } from './kyc-verification/kyc-verification.module';
+import { RedisModule } from './redis/redis.module';
+import { MarketplaceModule } from './marketplace/marketplace.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { KycVerificationModule } from './kyc-verification/kyc-verification.modul
     AuthModule,
     AdminModule,
     KycVerificationModule,
+    RedisModule,
+    MarketplaceModule,
   ],
 })
 export class AppModule {}
