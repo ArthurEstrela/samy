@@ -2,10 +2,14 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { PresenceService } from './presence.service';
 import { FavoritesService } from './favorites.service';
+import { CallService } from '../calls/call.service';
 
 const MAX_CANDIDATES = 5000;
 const MAX_LIMIT = 100;
 const DEFAULT_LIMIT = 50;
+
+type CallStatus = 'ONLINE' | 'OCUPADA' | 'OFFLINE';
+const STATUS_RANK: Record<CallStatus, number> = { ONLINE: 0, OCUPADA: 1, OFFLINE: 2 };
 
 export interface ModelCard {
   userId: string;
@@ -14,7 +18,7 @@ export interface ModelCard {
   pricePerMinute: string;
   tags: string[];
   voicePreviewUrl: string | null;
-  isOnline: boolean;
+  status: CallStatus;
   isFavorite: boolean;
 }
 
@@ -35,6 +39,7 @@ export class DiscoveryService {
     private readonly prisma: PrismaService,
     private readonly presence: PresenceService,
     private readonly favorites: FavoritesService,
+    private readonly callService: CallService,
   ) {}
 
   async list(params: ListParams, requester: Requester): Promise<ModelCard[]> {
@@ -66,18 +71,25 @@ export class DiscoveryService {
     });
     const candidates = profiles;
 
-    const presence = await this.presence.getStatuses(candidates.map((p) => p.userId));
+    const candidateIds = candidates.map((p) => p.userId);
+    const presence = await this.presence.getStatuses(candidateIds);
+    const busy = await this.callService.activeModelIds(candidateIds);
     const favoriteIds =
       requester.role === 'CLIENT'
         ? new Set(await this.favorites.listFavoriteModelIds(requester.id))
         : new Set<string>();
 
+    const statusOf = (id: string): CallStatus =>
+      busy.has(id) ? 'OCUPADA' : presence[id] === 'ONLINE' ? 'ONLINE' : 'OFFLINE';
+
     const cards = candidates.map((p) =>
-      this.toCard(p, presence[p.userId] === 'ONLINE', favoriteIds.has(p.userId)),
+      this.toCard(p, statusOf(p.userId), favoriteIds.has(p.userId)),
     );
 
     cards.sort((a, b) => {
-      if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
+      if (STATUS_RANK[a.status] !== STATUS_RANK[b.status]) {
+        return STATUS_RANK[a.status] - STATUS_RANK[b.status];
+      }
       if (a.isFavorite !== b.isFavorite) return a.isFavorite ? -1 : 1;
       return 0; // candidates já vêm por createdAt desc; sort estável preserva
     });
@@ -91,17 +103,22 @@ export class DiscoveryService {
     if (!profile || !user || user.role !== 'MODEL' || user.status !== 'ACTIVE') {
       throw new NotFoundException('Model not found');
     }
-    const isOnline = (await this.presence.getStatus(modelId)) === 'ONLINE';
+    const busy = await this.callService.activeModelIds([modelId]);
+    const status: CallStatus = busy.has(modelId)
+      ? 'OCUPADA'
+      : (await this.presence.getStatus(modelId)) === 'ONLINE'
+        ? 'ONLINE'
+        : 'OFFLINE';
     const isFavorite =
       requester.role === 'CLIENT'
         ? new Set(await this.favorites.listFavoriteModelIds(requester.id)).has(modelId)
         : false;
-    return this.toCard(profile, isOnline, isFavorite);
+    return this.toCard(profile, status, isFavorite);
   }
 
   private toCard(
     p: { userId: string; stageName: string; bio: string | null; pricePerMinute: { toString(): string }; tags: string[]; voicePreviewUrl: string | null },
-    isOnline: boolean,
+    status: CallStatus,
     isFavorite: boolean,
   ): ModelCard {
     return {
@@ -111,7 +128,7 @@ export class DiscoveryService {
       pricePerMinute: p.pricePerMinute.toString(),
       tags: p.tags,
       voicePreviewUrl: p.voicePreviewUrl,
-      isOnline,
+      status,
       isFavorite,
     };
   }

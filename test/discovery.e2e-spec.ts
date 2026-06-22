@@ -27,6 +27,7 @@ describe('Discovery', () => {
   beforeEach(async () => {
     fakeId.reset();
     await raw.flushdb();
+    await prisma.call.deleteMany();
     await prisma.favorite.deleteMany();
     await prisma.modelProfile.deleteMany();
     await prisma.refreshToken.deleteMany();
@@ -77,7 +78,23 @@ describe('Discovery', () => {
     const res = await http().get('/models?limit=1').set('Authorization', `Bearer ${client.token}`).expect(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0].userId).toBe(onlineOld);
-    expect(res.body[0].isOnline).toBe(true);
+    expect(res.body[0].status).toBe('ONLINE');
+  });
+
+  it('modelo em chamada ACTIVE aparece como OCUPADA e ordena depois de ONLINE', async () => {
+    const online = await makeModel('on1');
+    const busy = await makeModel('busy1');
+    await raw.set(`presence:model:${online}`, 'ONLINE', 'EX', 30);
+    await raw.set(`presence:model:${busy}`, 'ONLINE', 'EX', 30);
+    await prisma.call.create({
+      data: { clientUserId: 'someclient', modelUserId: busy, status: 'ACTIVE', pricePerMinuteSnapshot: new Prisma.Decimal('5.00'), startedAt: new Date() },
+    });
+    const client = await login('cdisc', 'CLIENT');
+    const res = await http().get('/models').set('Authorization', `Bearer ${client.token}`).expect(200);
+    const byId = new Map(res.body.map((c: { userId: string; status: string }) => [c.userId, c.status]));
+    expect(byId.get(busy)).toBe('OCUPADA');
+    expect(byId.get(online)).toBe('ONLINE');
+    expect(res.body[0].userId).toBe(online); // ONLINE antes de OCUPADA
   });
 
   it('marca isFavorite para o cliente', async () => {

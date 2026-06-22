@@ -193,6 +193,17 @@ export class CallService {
     });
   }
 
+  async activeModelIds(modelIds: string[]): Promise<Set<string>> {
+    if (modelIds.length === 0) {
+      return new Set();
+    }
+    const rows = await this.prisma.call.findMany({
+      where: { modelUserId: { in: modelIds }, status: 'ACTIVE' },
+      select: { modelUserId: true },
+    });
+    return new Set(rows.map((r) => r.modelUserId));
+  }
+
   async getForParticipant(
     callId: string,
     userId: string,

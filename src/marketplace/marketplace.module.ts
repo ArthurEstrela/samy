@@ -10,9 +10,10 @@ import { FavoritesService } from './favorites.service';
 import { FavoritesController } from './favorites.controller';
 import { DiscoveryService } from './discovery.service';
 import { DiscoveryController } from './discovery.controller';
+import { CallsModule } from '../calls/calls.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, UsersModule],
+  imports: [PrismaModule, AuthModule, UsersModule, CallsModule],
   controllers: [ProfileController, PresenceController, FavoritesController, DiscoveryController],
   providers: [ProfileService, PresenceService, FavoritesService, DiscoveryService],
   exports: [ProfileService, PresenceService, FavoritesService, DiscoveryService],
