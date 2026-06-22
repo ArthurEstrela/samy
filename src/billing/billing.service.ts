@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import { Gift, GiftType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { resolveTakeRate, computeSplit } from './take-rate';
@@ -74,6 +74,45 @@ export class BillingService {
       );
       return { charged: true };
     });
+  }
+
+  async sendGift(clientId: string, modelId: string, giftTypeId: string): Promise<Gift> {
+    return this.prisma.$transaction(async (tx) => {
+      await this.lock(tx, `call-client:${clientId}`);
+      const giftType = await tx.giftType.findUnique({ where: { id: giftTypeId } });
+      if (!giftType || !giftType.active) {
+        throw new NotFoundException('gift not found');
+      }
+      const model = await tx.user.findUnique({ where: { id: modelId } });
+      if (!model || model.role !== 'MODEL') {
+        throw new NotFoundException('model not found');
+      }
+      const price = giftType.priceCredits;
+      const balance = await this.ledger.getBalance(`client:${clientId}`, tx);
+      if (balance.lessThan(price)) {
+        throw new HttpException('insufficient balance', HttpStatus.PAYMENT_REQUIRED);
+      }
+      const profile = await tx.modelProfile.findUnique({ where: { userId: modelId } });
+      const takeRate = resolveTakeRate(profile?.takeRate ?? null, this.globalTakeRate);
+      const { commission, modelShare } = computeSplit(price, takeRate);
+      const gift = await tx.gift.create({
+        data: { clientUserId: clientId, modelUserId: modelId, giftTypeId, priceSnapshot: price },
+      });
+      await this.ledger.postTransaction(
+        `gift:${gift.id}`,
+        [
+          { account: `client:${clientId}`, entryType: 'PRESENTE', amount: price.negated() },
+          { account: `model:${modelId}`, entryType: 'GANHO_PRESENTE', amount: modelShare },
+          { account: 'platform', entryType: 'COMISSAO', amount: commission },
+        ],
+        tx,
+      );
+      return gift;
+    });
+  }
+
+  listGiftCatalog(): Promise<GiftType[]> {
+    return this.prisma.giftType.findMany({ where: { active: true } });
   }
 
   private async lock(tx: Prisma.TransactionClient, key: string): Promise<void> {
