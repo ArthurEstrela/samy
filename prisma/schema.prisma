@@ -109,3 +109,20 @@ model Favorite {
   @@index([clientUserId])
   @@map("favorites")
 }
+
+model Call {
+  id                     String    @id @default(uuid())
+  clientUserId           String
+  modelUserId            String
+  status                 String
+  endReason              String?
+  pricePerMinuteSnapshot Decimal   @db.Decimal(14, 2)
+  roomName               String?
+  requestedAt            DateTime  @default(now())
+  startedAt              DateTime?
+  endedAt                DateTime?
+
+  @@index([modelUserId, status])
+  @@index([clientUserId, status])
+  @@map("calls")
+}
