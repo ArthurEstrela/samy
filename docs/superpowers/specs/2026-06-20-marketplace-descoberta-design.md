@@ -47,7 +47,10 @@ fica **online** em tempo real, e o cliente **descobre/filtra/favorita** modelos.
 - **`voicePreviewUrl`, se presente, é uma URL http(s) válida** (validada na escrita).
 - **Conta da modelo:** `model:<userId>` via `accountOf` (consistência com ledger/KYC).
 - **Descoberta retorna `isOnline` e `isFavorite`** calculados para o usuário requisitante.
-- **Listagem tem limite** (default 50, máx 100) — sem lista ilimitada.
+- **Paginação da descoberta é em memória** (não no SQL): busca todos os candidatos ACTIVE
+  (teto `MAX_CANDIDATES = 5000`), enriquece com Redis, ordena online-first, e fatia por
+  `limit` (default 50, máx 100) / `offset` (default 0). Isso evita o paradoxo
+  paginação×presença (o SQL não sabe quem está online).
 - **`npx tsc --noEmit` deve passar:** `import type` para interfaces em posição injetada (TS1272).
 - **Migração não-interativa:** `prisma migrate diff` + `prisma migrate deploy`; SQL em UTF-8
   sem BOM; banco de teste via `db:test:push`. **Append em `.env` sempre com newline inicial**
@@ -126,14 +129,23 @@ Body `{ bio?, pricePerMinute, tags?, voicePreviewUrl? }`. Valida `pricePerMinute
 ### 7.2 Heartbeat (`POST /me/heartbeat`, MODEL)
 `RedisService.setOnline(req.user.id)` → presença com TTL 30s. Retorna `{ status: 'ONLINE', ttl: 30 }`.
 
-### 7.3 Descoberta (`GET /models?tags=a,b&limit=`, autenticado)
-1. Query Postgres: Users `role=MODEL`, `status=ACTIVE`, com `ModelProfile`; se `tags`
-   informado, perfil deve conter todas as tags (`hasEvery`); aplica `limit` (default 50, máx 100).
-2. `RedisService.getStatuses(ids)` para os candidatos (um MGET).
+### 7.3 Descoberta (`GET /models?tags=a,b&limit=&offset=`, autenticado)
+
+> **Paginação é em memória, NÃO no SQL.** O Postgres não sabe quem está online (presença
+> vive no Redis), então um `LIMIT` por `createdAt` no SQL poderia excluir da página 1
+> justamente as modelos online — a vitrine mostraria zero online tendo modelos online. A
+> ordenação online-first só pode acontecer DEPOIS de enriquecer com o Redis. Por isso:
+> busca o conjunto candidato inteiro, ordena em memória, e só então fatia.
+
+1. Query Postgres: TODAS as Users `role=MODEL`, `status=ACTIVE`, com `ModelProfile`; se
+   `tags` informado, `tags hasEvery`. Teto de segurança `MAX_CANDIDATES = 5000` (traz as
+   mais recentes até esse teto; ultrapassar é o sinal de migrar pra índice dedicado — §11).
+2. `RedisService.getStatuses(ids)` — um MGET de todos os candidatos.
 3. Se o requisitante é CLIENT: `FavoritesService.listFavoriteModelIds(clientId)` para marcar
    `isFavorite`.
-4. Ordena: **ONLINE antes de OFFLINE → favoritas antes → `createdAt` desc**.
-5. Retorna `ModelCard[]`: `{ userId, displayName, bio, pricePerMinute, tags, voicePreviewUrl, isOnline, isFavorite }`.
+4. Ordena em memória: **ONLINE antes de OFFLINE → favoritas antes → `createdAt` desc**.
+5. Fatia: `slice(offset, offset + limit)` (limit default 50, máx 100; offset default 0).
+6. Retorna `ModelCard[]`: `{ userId, displayName, bio, pricePerMinute, tags, voicePreviewUrl, isOnline, isFavorite }`.
 
 ### 7.4 Modelo único (`GET /models/:id`, autenticado)
 Perfil público da modelo (404 se não existe / não é ACTIVE-com-perfil) + `isOnline` (+ `isFavorite` se CLIENT).
@@ -160,14 +172,25 @@ Perfil público da modelo (404 se não existe / não é ACTIVE-com-perfil) + `is
 5. Descoberta lista só modelos ACTIVE com perfil (PENDING ou sem-perfil não aparecem).
 6. Filtro por tags retorna só quem tem todas as tags pedidas.
 7. Ordenação: modelo ONLINE aparece antes de OFFLINE; entre online, favorita antes de não-favorita.
+7b. **Paradoxo paginação×presença:** crie N>limit modelos OFFLINE recentes e UMA modelo
+   ONLINE mais antiga; a online aparece na PÁGINA 1 (online-first vence a recência) — provando
+   que a ordenação não acontece no SQL. Este teste falharia com `LIMIT` no SQL.
 8. `isFavorite` reflete os favoritos do cliente requisitante.
 9. Favoritar/desfavoritar (idempotente); `GET /favorites` lista; favoritar não-MODEL → 404.
 10. MODEL em `POST /favorites/:id` → 403.
 11. `GET /models/:id` ACTIVE → perfil + isOnline; inexistente/PENDING → 404.
-12. `limit` respeitado (default e máximo).
+12. Paginação em memória respeita `limit`/`offset` (default e máximo; `limit` fora do range → 400).
 13. `RedisService` (integração): `setOnline` + `getStatuses` refletem presença; chave expira.
 
 ## 10. Sequência de implementação (sugerida)
 Infra Redis (compose + RedisService + env) → schema (ModelProfile, Favorite) →
 ProfileService+controller → PresenceService+heartbeat → FavoritesService+controller →
 DiscoveryService+controller (junta tudo) → suíte completa.
+
+## 11. Nota de escala (quando migrar)
+A descoberta busca o conjunto candidato inteiro e ordena/pagina em memória — correto e
+instantâneo até a casa dos milhares de modelos ACTIVE simultâneas (sort do V8 < 10ms). O
+gatilho de migração é ultrapassar `MAX_CANDIDATES`: aí o caminho é manter um **sorted-set
+no Redis** (`presence:online` com score = expiração, limpeza lazy via `ZREMRANGEBYSCORE`)
+para obter o conjunto online sem varrer o Postgres, ou um índice dedicado (Elasticsearch)
+quando filtros/ordenação ficarem ricos. Fora de escopo agora — decisão consciente de YAGNI.
