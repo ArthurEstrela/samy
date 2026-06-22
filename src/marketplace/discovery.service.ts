@@ -50,17 +50,22 @@ export class DiscoveryService {
       throw new BadRequestException('invalid limit/offset');
     }
 
+    const activeUsers = await this.prisma.user.findMany({
+      where: { role: 'MODEL', status: 'ACTIVE' },
+      select: { id: true, displayName: true },
+    });
+    const userById = new Map(activeUsers.map((u) => [u.id, u]));
+    const activeIds = activeUsers.map((u) => u.id);
+
     const profiles = await this.prisma.modelProfile.findMany({
-      where: params.tags && params.tags.length > 0 ? { tags: { hasEvery: params.tags } } : {},
+      where: {
+        userId: { in: activeIds },
+        ...(params.tags && params.tags.length > 0 ? { tags: { hasEvery: params.tags } } : {}),
+      },
       orderBy: { createdAt: 'desc' },
       take: MAX_CANDIDATES,
     });
-    const ids = profiles.map((p) => p.userId);
-    const users = await this.prisma.user.findMany({
-      where: { id: { in: ids }, role: 'MODEL', status: 'ACTIVE' },
-    });
-    const userById = new Map(users.map((u) => [u.id, u]));
-    const candidates = profiles.filter((p) => userById.has(p.userId));
+    const candidates = profiles;
 
     const presence = await this.presence.getStatuses(candidates.map((p) => p.userId));
     const favoriteIds =
