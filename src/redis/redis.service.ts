@@ -46,6 +46,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return out;
   }
 
+  presenceTtlSeconds(): number {
+    return TTL_SECONDS;
+  }
+
   async ttlOf(modelId: string): Promise<number> {
     return this.client.ttl(key(modelId));
   }

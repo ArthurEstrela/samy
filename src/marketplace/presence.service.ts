@@ -16,4 +16,8 @@ export class PresenceService {
   getStatuses(modelIds: string[]): Promise<Record<string, 'ONLINE' | 'OFFLINE'>> {
     return this.redis.getStatuses(modelIds);
   }
+
+  ttlSeconds(): number {
+    return this.redis.presenceTtlSeconds();
+  }
 }

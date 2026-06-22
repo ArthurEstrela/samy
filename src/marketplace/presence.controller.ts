@@ -15,6 +15,6 @@ export class PresenceController {
   @Post()
   async beat(@Req() req: Request & { user: AuthUser }): Promise<{ status: 'ONLINE'; ttl: number }> {
     await this.presence.heartbeat(req.user.id);
-    return { status: 'ONLINE', ttl: 30 };
+    return { status: 'ONLINE', ttl: this.presence.ttlSeconds() };
   }
 }
