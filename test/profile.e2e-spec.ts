@@ -64,4 +64,18 @@ describe('Profile', () => {
     await http().put('/me/profile').set('Authorization', `Bearer ${token}`).send({ pricePerMinute: '5.00' }).expect(403);
     await http().get('/me/profile').expect(401);
   });
+
+  it('tags: string (not array) → 400', async () => {
+    const token = await login('mod4', 'MODEL');
+    await http().put('/me/profile').set('Authorization', `Bearer ${token}`)
+      .send({ pricePerMinute: '5.00', tags: 'notarray' })
+      .expect(400);
+  });
+
+  it('tags: [1, 2] (numbers, not strings) → 400', async () => {
+    const token = await login('mod5', 'MODEL');
+    await http().put('/me/profile').set('Authorization', `Bearer ${token}`)
+      .send({ pricePerMinute: '5.00', tags: [1, 2] })
+      .expect(400);
+  });
 });

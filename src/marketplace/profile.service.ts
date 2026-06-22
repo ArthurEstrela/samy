@@ -20,6 +20,14 @@ export class ProfileService {
     if (dto.voicePreviewUrl !== undefined && !this.isHttpUrl(dto.voicePreviewUrl)) {
       throw new BadRequestException('voicePreviewUrl must be an http(s) URL');
     }
+    if (dto.tags !== undefined) {
+      if (!Array.isArray(dto.tags) || !dto.tags.every((t) => typeof t === 'string')) {
+        throw new BadRequestException('tags must be an array of strings');
+      }
+    }
+    if (dto.bio !== undefined && typeof dto.bio !== 'string') {
+      throw new BadRequestException('bio must be a string');
+    }
     const tags = dto.tags ?? [];
     return this.prisma.modelProfile.upsert({
       where: { userId },
