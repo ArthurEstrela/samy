@@ -21,7 +21,10 @@ describe('PayoutProcessor', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [PrismaModule, LedgerModule, KycModule, PayoutModule],
-    }).compile();
+    })
+      .overrideProvider(PSP_PAYOUT_PORT)
+      .useClass(FakePspPayoutPort)
+      .compile();
     processor = moduleRef.get(PayoutProcessor);
     payoutSvc = moduleRef.get(PayoutService);
     ledger = moduleRef.get(LedgerService);
