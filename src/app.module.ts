@@ -14,6 +14,8 @@ import { MarketplaceModule } from './marketplace/marketplace.module';
 import { CallsModule } from './calls/calls.module';
 import { BillingModule } from './billing/billing.module';
 import { HealthModule } from './health/health.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { SchedulerModule } from './scheduler/scheduler.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { HealthModule } from './health/health.module';
     MarketplaceModule,
     CallsModule,
     BillingModule,
+    ScheduleModule.forRoot(),
+    SchedulerModule,
     HealthModule,
   ],
 })
