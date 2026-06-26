@@ -19,7 +19,7 @@ describe('POST /webhooks/psp', () => {
     prisma = moduleRef.get(PrismaService);
     ledger = moduleRef.get(LedgerService);
   });
-  beforeEach(async () => { await prisma.ledgerEntry.deleteMany(); });
+  beforeEach(async () => { await prisma.recharge.deleteMany(); await prisma.ledgerEntry.deleteMany(); });
   afterAll(async () => { await app.close(); });
 
   function sign(payload: object): { body: string; sig: string } {
@@ -28,13 +28,9 @@ describe('POST /webhooks/psp', () => {
     return { body, sig };
   }
 
-  it('credita o cliente em evento payment.confirmed assinado', async () => {
-    const { body, sig } = sign({
-      event: 'payment.confirmed',
-      paymentId: 'pix_42',
-      userId: '7',
-      amount: '150.00',
-    });
+  it('credita o cliente (create-first) em payment.confirmed assinado', async () => {
+    await prisma.recharge.create({ data: { userId: '7', amount: new (require('@prisma/client').Prisma.Decimal)('150.00'), status: 'PENDING', pspChargeId: 'pix_42' } });
+    const { body, sig } = sign({ event: 'payment.confirmed', paymentId: 'pix_42', userId: '7', amount: '150.00' });
     await request(app.getHttpServer())
       .post('/webhooks/psp')
       .set('x-psp-signature', sig)
@@ -42,6 +38,11 @@ describe('POST /webhooks/psp', () => {
       .send(body)
       .expect(200);
     expect((await ledger.getBalance('client:7')).toString()).toBe('150');
+  });
+
+  it('não credita sem Recharge correspondente (órfão), mas responde 200', async () => {
+    await postSigned({ event: 'payment.confirmed', paymentId: 'pix_orphan', userId: '9', amount: '25.00' }).expect(200);
+    expect((await ledger.getBalance('client:9')).toString()).toBe('0');
   });
 
   it('rejeita assinatura inválida com 401', async () => {
@@ -78,11 +79,6 @@ describe('POST /webhooks/psp', () => {
 
   it('rejeita com 400 quando amount é malformado', async () => {
     await postSigned({ event: 'payment.confirmed', paymentId: 'pix_1', userId: '7', amount: 'abc' }).expect(400);
-  });
-
-  it('ainda credita com 200 num evento válido após validação', async () => {
-    await postSigned({ event: 'payment.confirmed', paymentId: 'pix_99', userId: '9', amount: '25.00' }).expect(200);
-    expect((await ledger.getBalance('client:9')).toString()).toBe('25');
   });
 
   it('eventos não-payment.confirmed retornam 200 sem creditar', async () => {

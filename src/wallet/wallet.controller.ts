@@ -67,11 +67,7 @@ export class WalletController {
       throw new BadRequestException('amount must be a positive decimal');
     }
 
-    await this.wallet.creditRecharge(
-      event.paymentId,
-      `client:${event.userId}`,
-      new Prisma.Decimal(event.amount),
-    );
+    await this.wallet.confirmRecharge(event.paymentId, new Prisma.Decimal(event.amount));
     return { received: true };
   }
 }

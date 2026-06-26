@@ -18,18 +18,38 @@ export class WalletService {
     @Inject(PSP_CHARGE_PORT) private readonly pspCharge: PspChargePort,
   ) {}
 
-  async creditRecharge(
-    pspPaymentId: string,
-    account: string,
-    amount: Prisma.Decimal,
-  ): Promise<{ posted: boolean }> {
-    if (!amount.greaterThan(new Prisma.Decimal(0))) {
-      throw new BadRequestException('amount must be positive');
-    }
-    return this.ledger.postTransaction(`recharge:${pspPaymentId}`, [
-      { account, entryType: 'RECARGA', amount },
-      { account: 'source:external', entryType: 'RECARGA_OFFSET', amount: amount.negated() },
-    ]);
+  async confirmRecharge(
+    pspChargeId: string,
+    eventAmount: Prisma.Decimal,
+  ): Promise<{ credited: boolean; reason?: 'unknown' | 'already' | 'amount_mismatch' }> {
+    return this.prisma.$transaction(async (tx) => {
+      const recharge = await tx.recharge.findFirst({ where: { pspChargeId } });
+      if (!recharge) {
+        return { credited: false, reason: 'unknown' as const };
+      }
+      if (recharge.status === 'PAID') {
+        return { credited: false, reason: 'already' as const };
+      }
+      if (!eventAmount.equals(recharge.amount)) {
+        return { credited: false, reason: 'amount_mismatch' as const };
+      }
+      const claimed = await tx.recharge.updateMany({
+        where: { id: recharge.id, status: 'PENDING' },
+        data: { status: 'PAID', paidAt: new Date() },
+      });
+      if (claimed.count !== 1) {
+        return { credited: false, reason: 'already' as const };
+      }
+      await this.ledger.postTransaction(
+        `recharge:${recharge.id}`,
+        [
+          { account: `client:${recharge.userId}`, entryType: 'RECARGA', amount: recharge.amount },
+          { account: 'source:external', entryType: 'RECARGA_OFFSET', amount: recharge.amount.negated() },
+        ],
+        tx,
+      );
+      return { credited: true };
+    });
   }
 
   async createRecharge(

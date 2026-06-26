@@ -1,5 +1,6 @@
 import { RealPspChargeAdapter } from '../src/wallet/real-psp-charge.adapter';
 import { FakePspChargeAdapter } from '../src/wallet/fake-psp-charge.adapter';
+import { LedgerService } from '../src/ledger/ledger.service';
 
 describe('PSP charge adapters', () => {
   it('RealPspChargeAdapter lança "not configured" até plugar um provedor', async () => {
@@ -127,5 +128,61 @@ describe('createRecharge + RechargeController', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe('FAILED');
     await app2.close();
+  });
+});
+
+describe('confirmRecharge', () => {
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let wallet: WalletService;
+  let ledger: LedgerService;
+
+  beforeAll(async () => {
+    const mod = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    app = mod.createNestApplication({ rawBody: true });
+    await app.init();
+    prisma = mod.get(PrismaService);
+    wallet = mod.get(WalletService);
+    ledger = mod.get(LedgerService);
+  });
+  beforeEach(async () => {
+    await prisma.recharge.deleteMany();
+    await prisma.ledgerEntry.deleteMany();
+  });
+  afterAll(async () => { await app.close(); });
+
+  async function pending(userId: string, amount: string, pspChargeId: string): Promise<string> {
+    const r = await prisma.recharge.create({ data: { userId, amount: new Prisma.Decimal(amount), status: 'PENDING', pspChargeId } });
+    return r.id;
+  }
+  const bal = async (acc: string): Promise<string> => (await ledger.getBalance(acc)).toString();
+
+  it('credita o valor persistido e marca PAID; idempotente', async () => {
+    const id = await pending('u1', '150.00', 'pix_42');
+    const r1 = await wallet.confirmRecharge('pix_42', new Prisma.Decimal('150.00'));
+    expect(r1.credited).toBe(true);
+    expect(await bal('client:u1')).toBe('150');
+    const row = await prisma.recharge.findUnique({ where: { id } });
+    expect(row?.status).toBe('PAID');
+    const r2 = await wallet.confirmRecharge('pix_42', new Prisma.Decimal('150.00'));
+    expect(r2.credited).toBe(false);
+    expect(r2.reason).toBe('already');
+    expect(await bal('client:u1')).toBe('150');
+  });
+
+  it('paymentId desconhecido não credita', async () => {
+    const r = await wallet.confirmRecharge('nope', new Prisma.Decimal('10.00'));
+    expect(r.credited).toBe(false);
+    expect(r.reason).toBe('unknown');
+  });
+
+  it('valor divergente não credita e mantém PENDING', async () => {
+    const id = await pending('u2', '100.00', 'pix_77');
+    const r = await wallet.confirmRecharge('pix_77', new Prisma.Decimal('999.00'));
+    expect(r.credited).toBe(false);
+    expect(r.reason).toBe('amount_mismatch');
+    expect(await bal('client:u2')).toBe('0');
+    const row = await prisma.recharge.findUnique({ where: { id } });
+    expect(row?.status).toBe('PENDING');
   });
 });
