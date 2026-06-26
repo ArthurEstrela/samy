@@ -92,6 +92,15 @@ describe('createRecharge + RechargeController', () => {
       .expect(403);
   });
 
+  it('amount malformado → 400 (não 500)', async () => {
+    const { access } = await makeUser('CLIENT');
+    await request(app.getHttpServer())
+      .post('/wallet/recharge')
+      .set('authorization', `Bearer ${access}`)
+      .send({ amount: 'abc' })
+      .expect(400);
+  });
+
   it('POST /wallet/recharge cria e GET /:id devolve ao dono; 404 para outro usuário', async () => {
     const client = await makeUser('CLIENT');
     const other = await makeUser('CLIENT');

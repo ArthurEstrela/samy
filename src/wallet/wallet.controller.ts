@@ -4,6 +4,7 @@ import {
   Controller,
   Headers,
   HttpCode,
+  Logger,
   Post,
   Req,
   UnauthorizedException,
@@ -30,6 +31,8 @@ function isNonEmptyString(value: unknown): value is string {
 
 @Controller('webhooks')
 export class WalletController {
+  private readonly logger = new Logger(WalletController.name);
+
   constructor(
     private readonly wallet: WalletService,
     private readonly validator: PspSignatureValidator,
@@ -67,7 +70,10 @@ export class WalletController {
       throw new BadRequestException('amount must be a positive decimal');
     }
 
-    await this.wallet.confirmRecharge(event.paymentId, new Prisma.Decimal(event.amount));
+    const result = await this.wallet.confirmRecharge(event.paymentId, new Prisma.Decimal(event.amount));
+    if (!result.credited) {
+      this.logger.warn(`confirmRecharge não creditou (${result.reason}) paymentId=${event.paymentId}`);
+    }
     return { received: true };
   }
 }

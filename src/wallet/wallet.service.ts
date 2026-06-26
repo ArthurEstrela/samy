@@ -81,6 +81,9 @@ export class WalletService {
         expiresAt: updated.expiresAt,
       };
     } catch {
+      // NOTE: se a chamada ao PSP teve sucesso mas este update falhar, a recarga fica
+      // FAILED sem pspChargeId. Um payment.confirmed posterior do PSP cairá como órfão
+      // (não creditado). Resolver ao plugar um provedor real (fluxo de retry/recuperação).
       await this.prisma.recharge.update({ where: { id: recharge.id }, data: { status: 'FAILED' } });
       throw new ServiceUnavailableException('payment provider unavailable');
     }

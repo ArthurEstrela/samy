@@ -1,4 +1,4 @@
-import { Body, Controller, Get, NotFoundException, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -23,7 +23,13 @@ export class RechargeController {
   @Post()
   @Roles('CLIENT')
   async create(@Req() req: Request & { user: AuthUser }, @Body() dto: CreateRechargeDto): Promise<unknown> {
-    return this.wallet.createRecharge(req.user.id, new Prisma.Decimal(dto.amount));
+    let amount: Prisma.Decimal;
+    try {
+      amount = new Prisma.Decimal(dto.amount);
+    } catch {
+      throw new BadRequestException('amount must be a valid decimal');
+    }
+    return this.wallet.createRecharge(req.user.id, amount);
   }
 
   @Get(':id')
