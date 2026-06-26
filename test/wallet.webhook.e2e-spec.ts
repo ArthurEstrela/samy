@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { createHmac } from 'crypto';
+import { Prisma } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -29,7 +30,7 @@ describe('POST /webhooks/psp', () => {
   }
 
   it('credita o cliente (create-first) em payment.confirmed assinado', async () => {
-    await prisma.recharge.create({ data: { userId: '7', amount: new (require('@prisma/client').Prisma.Decimal)('150.00'), status: 'PENDING', pspChargeId: 'pix_42' } });
+    await prisma.recharge.create({ data: { userId: '7', amount: new Prisma.Decimal('150.00'), status: 'PENDING', pspChargeId: 'pix_42' } });
     const { body, sig } = sign({ event: 'payment.confirmed', paymentId: 'pix_42', userId: '7', amount: '150.00' });
     await request(app.getHttpServer())
       .post('/webhooks/psp')
