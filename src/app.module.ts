@@ -13,6 +13,7 @@ import { RedisModule } from './redis/redis.module';
 import { MarketplaceModule } from './marketplace/marketplace.module';
 import { CallsModule } from './calls/calls.module';
 import { BillingModule } from './billing/billing.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { BillingModule } from './billing/billing.module';
     MarketplaceModule,
     CallsModule,
     BillingModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

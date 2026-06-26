@@ -53,4 +53,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async ttlOf(modelId: string): Promise<number> {
     return this.client.ttl(key(modelId));
   }
+
+  async ping(): Promise<boolean> {
+    const res = await this.client.ping();
+    return res === 'PONG';
+  }
 }
