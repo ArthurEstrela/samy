@@ -1,14 +1,21 @@
 import { Module } from '@nestjs/common';
+import { PrismaModule } from '../prisma/prisma.module';
 import { LedgerModule } from '../ledger/ledger.module';
+import { AuthModule } from '../auth/auth.module';
+import { UsersModule } from '../users/users.module';
 import { WalletService } from './wallet.service';
 import { WalletController } from './wallet.controller';
+import { RechargeController } from './recharge.controller';
 import { PspSignatureValidator } from './psp-signature.validator';
+import { PSP_CHARGE_PORT } from './psp-charge.port';
+import { RealPspChargeAdapter } from './real-psp-charge.adapter';
 
 @Module({
-  imports: [LedgerModule],
-  controllers: [WalletController],
+  imports: [PrismaModule, LedgerModule, AuthModule, UsersModule],
+  controllers: [WalletController, RechargeController],
   providers: [
     WalletService,
+    { provide: PSP_CHARGE_PORT, useClass: RealPspChargeAdapter },
     {
       provide: PspSignatureValidator,
       useFactory: (): PspSignatureValidator => {
