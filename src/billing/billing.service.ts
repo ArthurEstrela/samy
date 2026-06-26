@@ -72,6 +72,7 @@ export class BillingService {
         ],
         tx,
       );
+      await tx.call.update({ where: { id: callId }, data: { billedMinutes: { increment: 1 } } });
       return { charged: true };
     });
   }

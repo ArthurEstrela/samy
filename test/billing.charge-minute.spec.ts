@@ -115,4 +115,24 @@ describe('BillingService.chargeMinute', () => {
     const giftSent = r2.status === 'fulfilled';
     expect(minuteCharged !== giftSent).toBe(true);
   });
+
+  it('mantém billedMinutes: incrementa ao cobrar, não no caminho idempotente', async () => {
+    const { callId } = await setup({ credit: '20.00' });
+    await billing.chargeMinute(callId, 1);
+    let call = await prisma.call.findUnique({ where: { id: callId } });
+    expect(call?.billedMinutes).toBe(1);
+    await billing.chargeMinute(callId, 1); // idempotente — não sobe
+    call = await prisma.call.findUnique({ where: { id: callId } });
+    expect(call?.billedMinutes).toBe(1);
+    await billing.chargeMinute(callId, 2);
+    call = await prisma.call.findUnique({ where: { id: callId } });
+    expect(call?.billedMinutes).toBe(2);
+  });
+
+  it('NO_CREDITS não incrementa billedMinutes', async () => {
+    const { callId } = await setup({ price: '5.00', credit: '3.00' });
+    await billing.chargeMinute(callId, 1);
+    const call = await prisma.call.findUnique({ where: { id: callId } });
+    expect(call?.billedMinutes).toBe(0);
+  });
 });
