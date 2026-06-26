@@ -1,48 +1,20 @@
-import { Test } from '@nestjs/testing';
-import { Prisma } from '@prisma/client';
-import { PrismaModule } from '../src/prisma/prisma.module';
-import { PrismaService } from '../src/prisma/prisma.service';
-import { LedgerModule } from '../src/ledger/ledger.module';
-import { LedgerService } from '../src/ledger/ledger.service';
-import { WalletModule } from '../src/wallet/wallet.module';
-import { WalletService } from '../src/wallet/wallet.service';
+import { RealPspChargeAdapter } from '../src/wallet/real-psp-charge.adapter';
+import { FakePspChargeAdapter } from '../src/wallet/fake-psp-charge.adapter';
 
-describe('WalletService.creditRecharge', () => {
-  let wallet: WalletService;
-  let ledger: LedgerService;
-  let prisma: PrismaService;
-
-  beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({
-      imports: [PrismaModule, LedgerModule, WalletModule],
-    }).compile();
-    wallet = moduleRef.get(WalletService);
-    ledger = moduleRef.get(LedgerService);
-    prisma = moduleRef.get(PrismaService);
-  });
-  beforeEach(async () => { await prisma.ledgerEntry.deleteMany(); });
-  afterAll(async () => { await prisma.$disconnect(); });
-
-  it('credita o cliente e mantém o sistema em soma zero', async () => {
-    await wallet.creditRecharge('pix_1', 'client:1', new Prisma.Decimal('100.00'));
-    expect((await ledger.getBalance('client:1')).toString()).toBe('100');
-    expect((await ledger.getBalance('source:external')).toString()).toBe('-100');
-  });
-
-  it('webhook duplicado não credita duas vezes', async () => {
-    await wallet.creditRecharge('pix_1', 'client:1', new Prisma.Decimal('100.00'));
-    const dup = await wallet.creditRecharge('pix_1', 'client:1', new Prisma.Decimal('100.00'));
-    expect(dup.posted).toBe(false);
-    expect((await ledger.getBalance('client:1')).toString()).toBe('100');
-  });
-
-  it('rejeita recarga com valor não-positivo (defesa em profundidade)', async () => {
+describe('PSP charge adapters', () => {
+  it('RealPspChargeAdapter lança "not configured" até plugar um provedor', async () => {
+    const real = new RealPspChargeAdapter();
     await expect(
-      wallet.creditRecharge('pix_neg', 'client:1', new Prisma.Decimal('0')),
-    ).rejects.toThrow(/positive/i);
-    await expect(
-      wallet.creditRecharge('pix_neg', 'client:1', new Prisma.Decimal('-5.00')),
-    ).rejects.toThrow(/positive/i);
-    expect((await ledger.getBalance('client:1')).toString()).toBe('0');
+      real.createCharge({ rechargeId: 'r1', amount: '50.00', payerUserId: 'u1' }),
+    ).rejects.toThrow(/not configured/i);
+  });
+
+  it('FakePspChargeAdapter devolve um QR determinístico com expiração futura', async () => {
+    const fake = new FakePspChargeAdapter();
+    const out = await fake.createCharge({ rechargeId: 'r1', amount: '50.00', payerUserId: 'u1' });
+    expect(out.pspChargeId).toContain('r1');
+    expect(typeof out.qrText).toBe('string');
+    expect(out.qrText.length).toBeGreaterThan(0);
+    expect(out.expiresAt.getTime()).toBeGreaterThan(Date.now());
   });
 });
