@@ -122,6 +122,7 @@ model Call {
   requestedAt            DateTime  @default(now())
   startedAt              DateTime?
   endedAt                DateTime?
+  billedMinutes          Int       @default(0)
 
   @@index([modelUserId, status])
   @@index([clientUserId, status])
