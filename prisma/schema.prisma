@@ -129,6 +129,22 @@ model Call {
   @@map("calls")
 }
 
+model Recharge {
+  id          String    @id @default(uuid())
+  userId      String
+  amount      Decimal   @db.Decimal(14, 2)
+  status      String    @default("PENDING")
+  pspChargeId String?
+  qrText      String?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  paidAt      DateTime?
+
+  @@index([pspChargeId])
+  @@index([userId])
+  @@map("recharges")
+}
+
 model GiftType {
   id           String   @id @default(uuid())
   name         String
