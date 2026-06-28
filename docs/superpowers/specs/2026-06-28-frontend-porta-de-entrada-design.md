@@ -149,6 +149,30 @@ Com `VITE_API_URL` apontando pro backend e `VITE_GOOGLE_CLIENT_ID`/`GOOGLE_CLIEN
 `npm run dev` no `web/`, logar com Google, ver a lista de modelos e um perfil. (Documentado no
 README do front; não é gate automatizado.)
 
+## 7b. Design language (aprovado — "candlelit after-midnight")
+
+**Tese:** a voz é o corpo. Pessoas são representadas por **gradiente quente único + voiceprint
+(waveform)**, nunca por rosto/foto (reforça anonimato). Sensualidade por restrição e calor, não
+explicitude. Clima: depois da meia-noite, à luz de vela.
+
+**Tokens de cor (CSS vars / tema Tailwind):**
+- `--void` `#0E0A10` (background) · `--velvet` `#1A121F` (superfície/cards)
+- `--ember` `#E76F61` (ação primária / brilho) · `--gold` `#C9A36B` (premium + selo online)
+- `--cream` `#F2E9E4` (texto) · `--mist` `#9C8AA0` (texto secundário)
+- **Status como chama:** ONLINE = glow dourado/ember · OCUPADA = rosa âmbar dim · OFFLINE = malva frio sem brilho.
+
+**Tipografia (Google Fonts):**
+- Display: **Fraunces** (serifa sultry, com parcimônia — títulos, stageName grande).
+- Corpo: **Hanken Grotesk**. Métrica: **Space Mono** só pro preço/min (estética de medidor/taxímetro).
+
+**Elemento-assinatura:** o **voiceprint vivo** — o waveform do card pulsa suavemente quando ONLINE
+(uma voz ao vivo respira); imóvel quando OFFLINE. Único lugar com motion forte; respeitar
+`prefers-reduced-motion` (sem pulso). Avatar = orb de gradiente quente derivado do id (determinístico),
+zero rostos.
+
+**Disciplina:** floor de qualidade sem alarde — responsivo até mobile, foco de teclado visível,
+motion reduzido respeitado. Gastar ousadia só no voiceprint; o resto quieto.
+
 ## 8. Sequência de implementação (sugerida)
 Scaffold (`web/` Vite+React+TS+Tailwind+Router+Query) → tipos + client de API (refresh-no-401) +
 sessão → AuthProvider + LoginPage (GIS) + ProtectedRoute → Descoberta (useModels + cards + estados)
