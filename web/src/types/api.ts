@@ -47,3 +47,12 @@ export interface UpsertProfileInput {
   tags?: string[];
   voicePreviewUrl?: string;
 }
+
+export interface Payout {
+  id: string;
+  amount: string;
+  status: string;
+  pixKey: string;
+  createdAt: string;
+  processedAt?: string | null;
+}

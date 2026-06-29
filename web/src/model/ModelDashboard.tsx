@@ -2,6 +2,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/auth-context';
 import { PresenceToggle } from './PresenceToggle';
 import { ProfileForm } from './ProfileForm';
+import { EarningsPanel } from './EarningsPanel';
 
 export function ModelDashboard(): JSX.Element {
   const { user, logout } = useAuth();
@@ -15,6 +16,7 @@ export function ModelDashboard(): JSX.Element {
       </header>
       <div className="mt-8"><PresenceToggle /></div>
       <ProfileForm />
+      <EarningsPanel />
     </main>
   );
 }
