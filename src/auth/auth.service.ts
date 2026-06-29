@@ -48,6 +48,27 @@ export class AuthService {
     };
   }
 
+  async devLogin(): Promise<AuthResult> {
+    const provider = 'dev';
+    const subject = 'dev-client';
+    let user = await this.users.findByProvider(provider, subject);
+    if (!user) {
+      user = await this.users.createUser({ role: 'CLIENT', provider, subject, email: 'dev@samy.local', name: 'Cliente Dev' });
+    }
+    const refreshToken = await this.tokens.issueRefresh(user.id);
+    return {
+      accessToken: this.tokens.signAccess({ id: user.id, role: user.role }),
+      refreshToken,
+      user: {
+        id: user.id,
+        role: user.role,
+        status: user.status,
+        email: user.email,
+        displayName: user.displayName,
+      },
+    };
+  }
+
   async refresh(rawToken: string): Promise<{ accessToken: string; refreshToken: string }> {
     const { userId, refreshToken } = await this.tokens.rotateRefresh(rawToken);
     const user = await this.users.findById(userId);

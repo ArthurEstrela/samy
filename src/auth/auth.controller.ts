@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, NotFoundException, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import type { GoogleLoginDto, RefreshDto } from './dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -30,6 +30,14 @@ export class AuthController {
       await this.auth.logout(body.refreshToken);
     }
     return { ok: true };
+  }
+
+  @Post('dev-login')
+  async devLogin(): Promise<unknown> {
+    if (process.env.DEV_LOGIN !== 'true' || process.env.NODE_ENV === 'production') {
+      throw new NotFoundException();
+    }
+    return this.auth.devLogin();
   }
 
   @Get('me')
