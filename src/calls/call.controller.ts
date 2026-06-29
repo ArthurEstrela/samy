@@ -44,6 +44,12 @@ export class CallController {
     return this.calls.panic(id, req.user.id);
   }
 
+  @Get('incoming')
+  @Roles('MODEL')
+  async incoming(@Req() req: Request & { user: AuthUser }): Promise<{ call: unknown }> {
+    return { call: await this.calls.incomingFor(req.user.id) };
+  }
+
   @Get(':id')
   async get(@Req() req: Request & { user: AuthUser }, @Param('id') id: string): Promise<unknown> {
     return this.calls.getForParticipant(id, req.user.id, req.user.role);

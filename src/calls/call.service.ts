@@ -195,6 +195,17 @@ export class CallService {
     });
   }
 
+  async incomingFor(modelId: string): Promise<Call | null> {
+    return this.prisma.call.findFirst({
+      where: {
+        modelUserId: modelId,
+        status: 'REQUESTED',
+        requestedAt: { gt: new Date(Date.now() - RING_TIMEOUT_SECONDS * 1000) },
+      },
+      orderBy: { requestedAt: 'desc' },
+    });
+  }
+
   async activeModelIds(modelIds: string[]): Promise<Set<string>> {
     if (modelIds.length === 0) {
       return new Set();
