@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
+import { AuthProvider } from '../auth/auth-context';
 import { DiscoveryPage } from './DiscoveryPage';
 import { setSession } from '../lib/session';
 import type { Session } from '../lib/session';
@@ -17,7 +18,7 @@ function jsonResponse(status: number, body: unknown): Response {
 }
 function wrap(ui: React.ReactNode): JSX.Element {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return <QueryClientProvider client={qc}><MemoryRouter>{ui}</MemoryRouter></QueryClientProvider>;
+  return <QueryClientProvider client={qc}><MemoryRouter><AuthProvider>{ui}</AuthProvider></MemoryRouter></QueryClientProvider>;
 }
 beforeEach(() => { localStorage.clear(); setSession(sess); });
 afterEach(() => vi.restoreAllMocks());

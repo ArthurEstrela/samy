@@ -1,12 +1,10 @@
-import { useContext } from 'react';
 import { useModels } from './useModels';
 import { ModelCard } from './ModelCard';
-import { AuthContext } from '../auth/auth-context';
+import { useAuth } from '../auth/auth-context';
 
 export function DiscoveryPage(): JSX.Element {
   const { data, isLoading, isError, refetch } = useModels();
-  const auth = useContext(AuthContext);
-  const logout = auth?.logout ?? (() => Promise.resolve());
+  const { logout } = useAuth();
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
