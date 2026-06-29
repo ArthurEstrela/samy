@@ -26,11 +26,20 @@ function wrap(): JSX.Element {
 beforeEach(() => { localStorage.clear(); setSession(sess); });
 afterEach(() => vi.restoreAllMocks());
 
-it('mostra o perfil e o botão de chamada desabilitado', async () => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(200, profile)));
+it('com modelo ONLINE, "Iniciar chamada" inicia e navega', async () => {
+  const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+    const u = String(url);
+    if (u.endsWith('/models/m1') && (!init || init.method === undefined || init.method === 'GET')) return Promise.resolve(jsonResponse(200, { ...profile, status: 'ONLINE' }));
+    if (u.endsWith('/calls') && init?.method === 'POST') return Promise.resolve(jsonResponse(201, { id: 'newcall' }));
+    return Promise.resolve(jsonResponse(200, {}));
+  });
+  vi.stubGlobal('fetch', fetchMock);
   render(wrap());
   await waitFor(() => expect(screen.getByText('Lara')).toBeInTheDocument());
-  expect(screen.getByRole('button', { name: /chamada/i })).toBeDisabled();
+  const btn = screen.getByRole('button', { name: /iniciar chamada/i });
+  expect(btn).not.toBeDisabled();
+  await userEvent.click(btn);
+  await waitFor(() => expect(fetchMock.mock.calls.some((c) => String(c[0]).endsWith('/calls') && (c[1] as RequestInit)?.method === 'POST')).toBe(true));
 });
 
 it('favoritar chama POST /favorites/:id', async () => {

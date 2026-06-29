@@ -1,6 +1,7 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useModel } from './useModel';
 import { useFavorite } from './useFavorite';
+import { useCallActions } from '../calls/useCallActions';
 import { Orb } from '../ui/Orb';
 import { Voiceprint } from '../ui/Voiceprint';
 import { StatusBadge } from '../ui/StatusBadge';
@@ -8,8 +9,10 @@ import { ApiError } from '../lib/api-client';
 
 export function ModelProfilePage(): JSX.Element {
   const { id = '' } = useParams();
+  const navigate = useNavigate();
   const { data: model, isLoading, error } = useModel(id);
   const { toggle, pending } = useFavorite(id);
+  const { initiate } = useCallActions();
 
   if (isLoading) {
     return <main className="mx-auto max-w-2xl px-6 py-10"><div className="h-64 rounded-2xl bg-velvet animate-pulse" /></main>;
@@ -42,12 +45,13 @@ export function ModelProfilePage(): JSX.Element {
       <div className="mt-10 flex gap-3">
         <button
           type="button"
-          disabled
-          title="em breve"
-          className="rounded-full bg-ember/40 px-6 py-3 text-void/70 cursor-not-allowed"
+          disabled={model.status !== 'ONLINE' || initiate.isPending}
+          onClick={() => initiate.mutate(model.userId, { onSuccess: (call) => navigate(`/call/${call.id}`) })}
+          className="rounded-full bg-ember px-6 py-3 text-void disabled:bg-ember/40 disabled:text-void/70 disabled:cursor-not-allowed"
         >
-          Iniciar chamada (em breve)
+          {model.status === 'ONLINE' ? 'Iniciar chamada' : 'Indisponível'}
         </button>
+        {initiate.isError && <p className="mt-3 text-ember text-sm">Não foi possível iniciar (saldo ou disponibilidade).</p>}
         <button
           type="button"
           onClick={() => toggle(model.isFavorite)}
