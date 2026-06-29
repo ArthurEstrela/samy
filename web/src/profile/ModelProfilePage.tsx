@@ -6,6 +6,7 @@ import { Orb } from '../ui/Orb';
 import { Voiceprint } from '../ui/Voiceprint';
 import { StatusBadge } from '../ui/StatusBadge';
 import { ApiError } from '../lib/api-client';
+import { GiftPicker } from '../gifts/GiftPicker';
 
 export function ModelProfilePage(): JSX.Element {
   const { id = '' } = useParams();
@@ -62,6 +63,8 @@ export function ModelProfilePage(): JSX.Element {
           {model.isFavorite ? 'Remover dos favoritos' : 'Favoritar'}
         </button>
       </div>
+
+      <GiftPicker modelId={model.userId} />
     </main>
   );
 }

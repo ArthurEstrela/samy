@@ -78,3 +78,5 @@ export interface Call {
 }
 
 export interface CallView { call: Call; media?: MediaToken; }
+
+export interface GiftType { id: string; name: string; priceCredits: string; active: boolean; }
