@@ -84,6 +84,30 @@ export class KycVerificationService {
     });
   }
 
+  async devApprove(account: string, userId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+      await tx.kycVerification.upsert({
+        where: { providerRef: `dev:${account}` },
+        update: { status: 'APPROVED', resolvedAt: now },
+        create: {
+          account,
+          userId,
+          status: 'APPROVED',
+          providerRef: `dev:${account}`,
+          clientToken: 'dev',
+          sessionExpiresAt: new Date(now.getTime() + 60 * 60 * 1000),
+          resolvedAt: now,
+        },
+      });
+      await tx.kycStatus.upsert({ where: { account }, update: { approved: true }, create: { account, approved: true } });
+      const user = await tx.user.findUnique({ where: { id: userId } });
+      if (user && user.status === 'PENDING_VERIFICATION') {
+        await tx.user.update({ where: { id: userId }, data: { status: 'ACTIVE' } });
+      }
+    });
+  }
+
   async getLatest(account: string): Promise<LatestResult> {
     const v = await this.prisma.kycVerification.findFirst({
       where: { account },

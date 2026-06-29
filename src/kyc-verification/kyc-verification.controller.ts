@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { AuthUser } from '../auth/jwt-auth.guard';
@@ -26,5 +26,15 @@ export class KycVerificationController {
   async me(@Req() req: Request & { user: AuthUser }): Promise<unknown> {
     const account = this.users.accountOf({ id: req.user.id, role: req.user.role });
     return this.kyc.getLatest(account);
+  }
+
+  @Post('dev-approve')
+  async devApprove(@Req() req: Request & { user: AuthUser }): Promise<{ ok: true }> {
+    if (process.env.DEV_LOGIN !== 'true' || process.env.NODE_ENV === 'production') {
+      throw new NotFoundException();
+    }
+    const account = this.users.accountOf({ id: req.user.id, role: req.user.role });
+    await this.kyc.devApprove(account, req.user.id);
+    return { ok: true };
   }
 }
