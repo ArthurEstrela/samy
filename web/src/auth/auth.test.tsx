@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth-context';
 import { ProtectedRoute } from './ProtectedRoute';
+import { LoginPage } from './LoginPage';
 import { getSession, setSession } from '../lib/session';
 import type { Session } from '../lib/session';
 
@@ -73,5 +74,24 @@ describe('ProtectedRoute', () => {
       </MemoryRouter>,
     );
     expect(screen.getByText('protegido')).toBeInTheDocument();
+  });
+});
+
+describe('LoginPage dev-login', () => {
+  it('mostra o botão dev e chama /auth/dev-login quando VITE_DEV_LOGIN=true', async () => {
+    vi.stubEnv('VITE_DEV_LOGIN', 'true');
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { accessToken: 'a', refreshToken: 'r', user: sess.user }));
+    vi.stubGlobal('fetch', fetchMock);
+    render(
+      <MemoryRouter><AuthProvider><LoginPage /></AuthProvider></MemoryRouter>,
+    );
+    const btn = screen.getByRole('button', { name: /entrar como teste/i });
+    await userEvent.click(btn);
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find((c) => String(c[0]).endsWith('/auth/dev-login'));
+      expect(call).toBeTruthy();
+      expect((call![1] as RequestInit).method).toBe('POST');
+    });
+    vi.unstubAllEnvs();
   });
 });

@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from './auth-context';
 
 export function LoginPage(): JSX.Element {
-  const { login } = useAuth();
+  const { login, devLogin } = useAuth();
   const navigate = useNavigate();
   const btnRef = useRef<HTMLDivElement>(null);
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const devEnabled = import.meta.env.VITE_DEV_LOGIN === 'true';
 
   useEffect(() => {
     if (!clientId || !window.google || !btnRef.current) return;
@@ -29,6 +30,15 @@ export function LoginPage(): JSX.Element {
             ? <div ref={btnRef} />
             : <p className="text-mist text-sm">Login não configurado (defina <code>VITE_GOOGLE_CLIENT_ID</code>).</p>}
         </div>
+        {devEnabled && (
+          <button
+            type="button"
+            onClick={() => void devLogin().then(() => navigate('/', { replace: true }))}
+            className="mt-4 rounded-full border border-mist/40 px-6 py-3 text-cream hover:border-ember"
+          >
+            Entrar como teste (dev)
+          </button>
+        )}
       </div>
     </main>
   );
