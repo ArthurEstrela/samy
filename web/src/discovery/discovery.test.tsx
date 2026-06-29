@@ -24,21 +24,31 @@ beforeEach(() => { localStorage.clear(); setSession(sess); });
 afterEach(() => vi.restoreAllMocks());
 
 it('renderiza os cards da lista (stageName, nunca nome real)', async () => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(200, cards)));
+  vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
+    if (String(url).endsWith('/wallet/balance')) return Promise.resolve(jsonResponse(200, { balance: '0' }));
+    return Promise.resolve(jsonResponse(200, cards));
+  }));
   render(wrap(<DiscoveryPage />));
   await waitFor(() => expect(screen.getByText('Lara')).toBeInTheDocument());
   expect(screen.getByText('Bia')).toBeInTheDocument();
   expect(screen.queryByText('A')).not.toBeInTheDocument();
+  expect(screen.getByText(/carteira/i)).toBeInTheDocument();
 });
 
 it('mostra estado vazio quando não há modelos', async () => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(200, [])));
+  vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
+    if (String(url).endsWith('/wallet/balance')) return Promise.resolve(jsonResponse(200, { balance: '0' }));
+    return Promise.resolve(jsonResponse(200, []));
+  }));
   render(wrap(<DiscoveryPage />));
   await waitFor(() => expect(screen.getByText(/nenhuma voz/i)).toBeInTheDocument());
 });
 
 it('mostra estado de erro quando a API falha', async () => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(500, { message: 'boom' })));
+  vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
+    if (String(url).endsWith('/wallet/balance')) return Promise.resolve(jsonResponse(200, { balance: '0' }));
+    return Promise.resolve(jsonResponse(500, { message: 'boom' }));
+  }));
   render(wrap(<DiscoveryPage />));
   await waitFor(() => expect(screen.getByText(/tentar de novo/i)).toBeInTheDocument());
 });

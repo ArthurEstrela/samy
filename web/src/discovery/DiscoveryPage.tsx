@@ -1,16 +1,22 @@
+import { Link } from 'react-router-dom';
 import { useModels } from './useModels';
 import { ModelCard } from './ModelCard';
 import { useAuth } from '../auth/auth-context';
+import { useBalance } from '../wallet/useBalance';
 
 export function DiscoveryPage(): JSX.Element {
   const { data, isLoading, isError, refetch } = useModels();
   const { logout } = useAuth();
+  const { data: bal } = useBalance();
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
-      <header className="flex items-baseline justify-between">
+      <header className="flex items-baseline justify-between gap-4">
         <h1 className="font-display text-4xl text-cream">Quem você quer ouvir?</h1>
-        <button onClick={() => void logout()} className="text-mist text-sm hover:text-cream">sair</button>
+        <div className="flex items-baseline gap-4 text-sm">
+          <Link to="/wallet" className="font-mono text-cream hover:text-ember">⌗ {bal?.balance ?? '…'} · Carteira</Link>
+          <button onClick={() => void logout()} className="text-mist hover:text-cream">sair</button>
+        </div>
       </header>
 
       <section className="mt-10">
