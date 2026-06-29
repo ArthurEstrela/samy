@@ -22,3 +22,10 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+.voiceprint-bar { border-radius: 2px; transform-origin: bottom; }
+.voiceprint-bar--alive { animation: breathe 1.6s ease-in-out infinite; }
+@keyframes breathe {
+  0%, 100% { transform: scaleY(0.5); }
+  50% { transform: scaleY(1); }
+}

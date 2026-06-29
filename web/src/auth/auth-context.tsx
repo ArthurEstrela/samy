@@ -10,7 +10,7 @@ interface AuthValue {
   logout: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthValue | null>(null);
+export const AuthContext = createContext<AuthValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }): JSX.Element {
   const [user, setUser] = useState<SessionUser | null>(() => getSession()?.user ?? null);
