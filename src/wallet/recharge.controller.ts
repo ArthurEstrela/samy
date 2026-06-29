@@ -40,4 +40,16 @@ export class RechargeController {
     }
     return { id: r.id, amount: r.amount.toString(), status: r.status, qrText: r.qrText, expiresAt: r.expiresAt, paidAt: r.paidAt };
   }
+
+  @Post(':id/dev-confirm')
+  async devConfirm(@Req() req: Request & { user: AuthUser }, @Param('id') id: string): Promise<unknown> {
+    if (process.env.DEV_LOGIN !== 'true' || process.env.NODE_ENV === 'production') {
+      throw new NotFoundException();
+    }
+    const r = await this.prisma.recharge.findUnique({ where: { id } });
+    if (!r || r.userId !== req.user.id) {
+      throw new NotFoundException('recharge not found');
+    }
+    return this.wallet.confirmRecharge(r.pspChargeId ?? '', r.amount);
+  }
 }
