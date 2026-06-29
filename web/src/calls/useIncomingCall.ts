@@ -8,5 +8,6 @@ export function useIncomingCall(enabled: boolean): ReturnType<typeof useQuery<{ 
     queryFn: () => apiFetch<{ call: Call | null }>('/calls/incoming', { auth: true }),
     enabled,
     refetchInterval: 3000,
+    retry: false,
   });
 }
