@@ -85,12 +85,26 @@ describe('LoginPage dev-login', () => {
     render(
       <MemoryRouter><AuthProvider><LoginPage /></AuthProvider></MemoryRouter>,
     );
-    const btn = screen.getByRole('button', { name: /entrar como teste/i });
+    const btn = screen.getByRole('button', { name: /entrar como cliente/i });
     await userEvent.click(btn);
     await waitFor(() => {
       const call = fetchMock.mock.calls.find((c) => String(c[0]).endsWith('/auth/dev-login'));
       expect(call).toBeTruthy();
       expect((call![1] as RequestInit).method).toBe('POST');
+    });
+    vi.unstubAllEnvs();
+  });
+
+  it('botão de modelo chama dev-login com role MODEL', async () => {
+    vi.stubEnv('VITE_DEV_LOGIN', 'true');
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { accessToken: 'a', refreshToken: 'r', user: { ...sess.user, role: 'MODEL' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    render(<MemoryRouter><AuthProvider><LoginPage /></AuthProvider></MemoryRouter>);
+    await userEvent.click(screen.getByRole('button', { name: /entrar como modelo/i }));
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find((c) => String(c[0]).endsWith('/auth/dev-login'));
+      expect(call).toBeTruthy();
+      expect(JSON.parse(String((call![1] as RequestInit).body))).toEqual({ role: 'MODEL' });
     });
     vi.unstubAllEnvs();
   });

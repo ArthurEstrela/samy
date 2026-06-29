@@ -31,13 +31,22 @@ export function LoginPage(): JSX.Element {
             : <p className="text-mist text-sm">Login não configurado (defina <code>VITE_GOOGLE_CLIENT_ID</code>).</p>}
         </div>
         {devEnabled && (
-          <button
-            type="button"
-            onClick={() => void devLogin().then(() => navigate('/', { replace: true }))}
-            className="mt-4 rounded-full border border-mist/40 px-6 py-3 text-cream hover:border-ember"
-          >
-            Entrar como teste (dev)
-          </button>
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void devLogin('CLIENT').then(() => navigate('/', { replace: true }))}
+              className="rounded-full border border-mist/40 px-6 py-3 text-cream hover:border-ember"
+            >
+              Entrar como cliente (dev)
+            </button>
+            <button
+              type="button"
+              onClick={() => void devLogin('MODEL').then(() => navigate('/painel', { replace: true }))}
+              className="rounded-full border border-mist/40 px-6 py-3 text-cream hover:border-ember"
+            >
+              Entrar como modelo (teste)
+            </button>
+          </div>
         )}
       </div>
     </main>
