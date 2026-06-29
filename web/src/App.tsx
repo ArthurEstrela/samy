@@ -5,6 +5,7 @@ import { DiscoveryPage } from './discovery/DiscoveryPage';
 import { ModelProfilePage } from './profile/ModelProfilePage';
 import { WalletPage } from './wallet/WalletPage';
 import { ModelDashboard } from './model/ModelDashboard';
+import { CallScreen } from './calls/CallScreen';
 
 export default function App(): JSX.Element {
   return (
@@ -14,6 +15,7 @@ export default function App(): JSX.Element {
       <Route path="/models/:id" element={<ProtectedRoute><ModelProfilePage /></ProtectedRoute>} />
       <Route path="/wallet" element={<ProtectedRoute><WalletPage /></ProtectedRoute>} />
       <Route path="/painel" element={<ProtectedRoute><ModelDashboard /></ProtectedRoute>} />
+      <Route path="/call/:id" element={<ProtectedRoute><CallScreen /></ProtectedRoute>} />
     </Routes>
   );
 }
