@@ -58,4 +58,16 @@ export class PayoutService {
       return payout;
     });
   }
+
+  async listForAccount(account: string): Promise<import('@prisma/client').Payout[]> {
+    return this.prisma.payout.findMany({ where: { account }, orderBy: { createdAt: 'desc' } });
+  }
+
+  async grantDevEarnings(account: string): Promise<void> {
+    await this.ledger.postTransaction(`dev-earn:${account}:${Date.now()}`, [
+      { account, entryType: 'GANHO_MIN', amount: new Prisma.Decimal('300.00') },
+      { account: 'source:external', entryType: 'SEED', amount: new Prisma.Decimal('-300.00') },
+    ]);
+    await this.prisma.kycStatus.upsert({ where: { account }, update: { approved: true }, create: { account, approved: true } });
+  }
 }
