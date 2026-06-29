@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiFetch, ApiError } from './api-client';
-import { getSession, setSession, clearSession } from './session';
+import { getSession, setSession } from './session';
 import type { Session } from './session';
 
 const sess: Session = {
