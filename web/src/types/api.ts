@@ -63,3 +63,18 @@ export interface KycStatusView {
   createdAt?: string;
   resolvedAt?: string;
 }
+
+export interface MediaToken { token: string; url: string; }
+
+export interface Call {
+  id: string;
+  clientUserId: string;
+  modelUserId: string;
+  status: 'REQUESTED' | 'ACTIVE' | 'ENDED';
+  endReason: string | null;
+  pricePerMinuteSnapshot: string;
+  roomName: string | null;
+  startedAt: string | null;
+}
+
+export interface CallView { call: Call; media?: MediaToken; }
