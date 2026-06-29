@@ -21,3 +21,12 @@ export interface SessionUser {
 
 export interface AuthResult { accessToken: string; refreshToken: string; user: SessionUser; }
 export interface RefreshResult { accessToken: string; refreshToken: string; }
+
+export interface Recharge {
+  id: string;
+  amount: string;
+  status: 'PENDING' | 'PAID' | 'FAILED';
+  qrText: string | null;
+  expiresAt: string | null;
+  paidAt?: string | null;
+}
