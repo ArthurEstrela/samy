@@ -6,13 +6,14 @@ import { UsersModule } from '../users/users.module';
 import { WalletService } from './wallet.service';
 import { WalletController } from './wallet.controller';
 import { RechargeController } from './recharge.controller';
+import { WalletBalanceController } from './wallet-balance.controller';
 import { PspSignatureValidator } from './psp-signature.validator';
 import { PSP_CHARGE_PORT } from './psp-charge.port';
 import { RealPspChargeAdapter } from './real-psp-charge.adapter';
 
 @Module({
   imports: [PrismaModule, LedgerModule, AuthModule, UsersModule],
-  controllers: [WalletController, RechargeController],
+  controllers: [WalletController, RechargeController, WalletBalanceController],
   providers: [
     WalletService,
     { provide: PSP_CHARGE_PORT, useClass: RealPspChargeAdapter },
