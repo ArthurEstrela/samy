@@ -46,6 +46,21 @@ async function main(): Promise<void> {
       });
     }
 
+    // Tipos de presente (idempotente por id fixo)
+    const GIFTS = [
+      { id: 'gift-rosa', name: 'Rosa', price: '5.00' },
+      { id: 'gift-beijo', name: 'Beijo', price: '10.00' },
+      { id: 'gift-coracao', name: 'Coração', price: '25.00' },
+      { id: 'gift-coroa', name: 'Coroa', price: '50.00' },
+    ];
+    for (const g of GIFTS) {
+      await prisma.giftType.upsert({
+        where: { id: g.id },
+        update: { name: g.name, priceCredits: new Prisma.Decimal(g.price), active: true },
+        create: { id: g.id, name: g.name, priceCredits: new Prisma.Decimal(g.price), active: true },
+      });
+    }
+
     // OCUPADA: uma chamada ACTIVE persistida (não depende de presença/TTL)
     const sofiaId = ids['m-sofia'];
     await prisma.call.deleteMany({ where: { modelUserId: sofiaId, status: 'ACTIVE' } });
@@ -72,7 +87,7 @@ async function main(): Promise<void> {
     }
 
     // eslint-disable-next-line no-console
-    console.log(`seed-demo ok: cliente dev + ${MODELS.length} modelos (4 ONLINE/TTL 30s, 1 OCUPADA, 1 OFFLINE).`);
+    console.log(`seed-demo ok: cliente dev + ${MODELS.length} modelos (4 ONLINE/TTL 30s, 1 OCUPADA, 1 OFFLINE) + 4 presentes.`);
   } finally {
     await prisma.$disconnect();
   }
