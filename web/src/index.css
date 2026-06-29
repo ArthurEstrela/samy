@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@theme {
+  --color-void: #0E0A10;
+  --color-velvet: #1A121F;
+  --color-ember: #E76F61;
+  --color-gold: #C9A36B;
+  --color-cream: #F2E9E4;
+  --color-mist: #9C8AA0;
+  --font-display: "Fraunces Variable", serif;
+  --font-body: "Hanken Grotesk Variable", sans-serif;
+  --font-mono: "Space Mono", monospace;
+}
+
+body {
+  margin: 0;
+  background: var(--color-void);
+  color: var(--color-cream);
+  font-family: var(--font-body);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
