@@ -17,4 +17,11 @@ export class WalletBalanceController {
     const b = await this.ledger.getBalance(`client:${req.user.id}`);
     return { balance: b.toString() };
   }
+
+  @Get('earnings')
+  @Roles('MODEL')
+  async earnings(@Req() req: Request & { user: AuthUser }): Promise<{ balance: string }> {
+    const b = await this.ledger.getBalance(`model:${req.user.id}`);
+    return { balance: b.toString() };
+  }
 }
