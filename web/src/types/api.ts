@@ -30,3 +30,20 @@ export interface Recharge {
   expiresAt: string | null;
   paidAt?: string | null;
 }
+
+export interface ModelProfile {
+  userId: string;
+  stageName: string;
+  bio: string | null;
+  pricePerMinute: string;
+  tags: string[];
+  voicePreviewUrl: string | null;
+}
+
+export interface UpsertProfileInput {
+  stageName: string;
+  bio?: string;
+  pricePerMinute: string;
+  tags?: string[];
+  voicePreviewUrl?: string;
+}
