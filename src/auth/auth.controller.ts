@@ -33,11 +33,11 @@ export class AuthController {
   }
 
   @Post('dev-login')
-  async devLogin(): Promise<unknown> {
+  async devLogin(@Body() body?: { role?: string }): Promise<unknown> {
     if (process.env.DEV_LOGIN !== 'true' || process.env.NODE_ENV === 'production') {
       throw new NotFoundException();
     }
-    return this.auth.devLogin();
+    return this.auth.devLogin(body?.role === 'MODEL' ? 'MODEL' : 'CLIENT');
   }
 
   @Get('me')

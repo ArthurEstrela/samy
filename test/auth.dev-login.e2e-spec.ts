@@ -45,4 +45,17 @@ describe('POST /auth/dev-login', () => {
     delete process.env.DEV_LOGIN;
     await request(app.getHttpServer()).post('/auth/dev-login').expect(404);
   });
+
+  it('com role MODEL cria modelo dev ACTIVE', async () => {
+    process.env.DEV_LOGIN = 'true';
+    const res = await request(app.getHttpServer()).post('/auth/dev-login').send({ role: 'MODEL' }).expect(201);
+    expect(res.body.user.role).toBe('MODEL');
+    expect(res.body.user.status).toBe('ACTIVE');
+  });
+
+  it('sem role continua CLIENT', async () => {
+    process.env.DEV_LOGIN = 'true';
+    const res = await request(app.getHttpServer()).post('/auth/dev-login').expect(201);
+    expect(res.body.user.role).toBe('CLIENT');
+  });
 });
