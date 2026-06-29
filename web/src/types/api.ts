@@ -56,3 +56,10 @@ export interface Payout {
   createdAt: string;
   processedAt?: string | null;
 }
+
+export interface KycStatusView {
+  status: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
+  reason?: string;
+  createdAt?: string;
+  resolvedAt?: string;
+}

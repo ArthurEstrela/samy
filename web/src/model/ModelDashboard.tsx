@@ -2,6 +2,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/auth-context';
 import { PresenceToggle } from './PresenceToggle';
 import { ProfileForm } from './ProfileForm';
+import { KycPanel } from './KycPanel';
 import { EarningsPanel } from './EarningsPanel';
 
 export function ModelDashboard(): JSX.Element {
@@ -16,6 +17,7 @@ export function ModelDashboard(): JSX.Element {
       </header>
       <div className="mt-8"><PresenceToggle /></div>
       <ProfileForm />
+      <KycPanel />
       <EarningsPanel />
     </main>
   );
