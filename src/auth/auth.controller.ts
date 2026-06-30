@@ -37,7 +37,8 @@ export class AuthController {
     if (process.env.DEV_LOGIN !== 'true' || process.env.NODE_ENV === 'production') {
       throw new NotFoundException();
     }
-    return this.auth.devLogin(body?.role === 'MODEL' ? 'MODEL' : 'CLIENT');
+    const role = body?.role === 'MODEL' ? 'MODEL' : body?.role === 'ADMIN' ? 'ADMIN' : 'CLIENT';
+    return this.auth.devLogin(role);
   }
 
   @Get('me')

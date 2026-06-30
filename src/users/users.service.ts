@@ -3,7 +3,7 @@ import { Prisma, User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface CreateUserInput {
-  role: 'CLIENT' | 'MODEL';
+  role: 'CLIENT' | 'MODEL' | 'ADMIN';
   provider: string;
   subject: string;
   email: string;
@@ -47,6 +47,17 @@ export class UsersService {
       }
       throw err;
     }
+  }
+
+  listUsers(filter?: { role?: string; status?: string }): Promise<User[]> {
+    return this.prisma.user.findMany({
+      where: {
+        ...(filter?.role ? { role: filter.role } : {}),
+        ...(filter?.status ? { status: filter.status } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
   }
 
   accountOf(user: { id: string; role: string }): string {

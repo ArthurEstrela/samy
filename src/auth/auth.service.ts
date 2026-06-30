@@ -48,16 +48,16 @@ export class AuthService {
     };
   }
 
-  async devLogin(role: 'CLIENT' | 'MODEL' = 'CLIENT'): Promise<AuthResult> {
+  async devLogin(role: 'CLIENT' | 'MODEL' | 'ADMIN' = 'CLIENT'): Promise<AuthResult> {
     const provider = 'dev';
-    const subject = role === 'MODEL' ? 'dev-model' : 'dev-client';
-    const email = role === 'MODEL' ? 'dev-model@samy.local' : 'dev@samy.local';
-    const name = role === 'MODEL' ? 'Modelo Dev' : 'Cliente Dev';
+    const subject = role === 'MODEL' ? 'dev-model' : role === 'ADMIN' ? 'dev-admin' : 'dev-client';
+    const email = role === 'MODEL' ? 'dev-model@samy.local' : role === 'ADMIN' ? 'dev-admin@samy.local' : 'dev@samy.local';
+    const name = role === 'MODEL' ? 'Modelo Dev' : role === 'ADMIN' ? 'Admin Dev' : 'Cliente Dev';
     let user = await this.users.findByProvider(provider, subject);
     if (!user) {
       user = await this.users.createUser({ role, provider, subject, email, name });
     }
-    if (role === 'MODEL' && user.status !== 'ACTIVE') {
+    if (role !== 'CLIENT' && user.status !== 'ACTIVE') {
       user = await this.users.setStatus(user.id, 'ACTIVE');
     }
     const refreshToken = await this.tokens.issueRefresh(user.id);
