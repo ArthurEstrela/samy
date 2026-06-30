@@ -13,6 +13,7 @@ import { RedisModule } from './redis/redis.module';
 import { MarketplaceModule } from './marketplace/marketplace.module';
 import { CallsModule } from './calls/calls.module';
 import { BillingModule } from './billing/billing.module';
+import { RankingModule } from './ranking/ranking.module';
 import { HealthModule } from './health/health.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { SchedulerModule } from './scheduler/scheduler.module';
@@ -33,6 +34,7 @@ import { SchedulerModule } from './scheduler/scheduler.module';
     MarketplaceModule,
     CallsModule,
     BillingModule,
+    RankingModule,
     ScheduleModule.forRoot(),
     SchedulerModule,
     HealthModule,
