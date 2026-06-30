@@ -80,3 +80,21 @@ export interface Call {
 export interface CallView { call: Call; media?: MediaToken; }
 
 export interface GiftType { id: string; name: string; priceCredits: string; active: boolean; }
+
+export type Tier = 'BRONZE' | 'PRATA' | 'OURO' | 'DIAMANTE';
+
+export interface MyRanking {
+  tier: Tier;
+  earned: string;
+  takeRate: string;
+  nextTier: Tier | null;
+  nextThreshold: string | null;
+  remaining: string | null;
+}
+
+export interface RankingEntry {
+  rank: number;
+  modelId: string;
+  stageName: string;
+  tier: Tier;
+}

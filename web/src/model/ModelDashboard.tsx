@@ -5,6 +5,7 @@ import { ProfileForm } from './ProfileForm';
 import { KycPanel } from './KycPanel';
 import { EarningsPanel } from './EarningsPanel';
 import { IncomingCallWatcher } from '../calls/IncomingCallWatcher';
+import { RankingPanel } from '../ranking/RankingPanel';
 
 export function ModelDashboard(): JSX.Element {
   const { user, logout } = useAuth();
@@ -18,6 +19,7 @@ export function ModelDashboard(): JSX.Element {
         <button onClick={() => void logout()} className="text-mist text-sm hover:text-cream">sair</button>
       </header>
       <div className="mt-8"><PresenceToggle /></div>
+      <RankingPanel />
       <ProfileForm />
       <KycPanel />
       <EarningsPanel />
