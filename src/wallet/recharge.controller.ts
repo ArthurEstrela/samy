@@ -32,6 +32,23 @@ export class RechargeController {
     return this.wallet.createRecharge(req.user.id, amount);
   }
 
+  @Get('history')
+  @Roles('CLIENT')
+  async history(@Req() req: Request & { user: AuthUser }): Promise<unknown> {
+    const rows = await this.prisma.recharge.findMany({
+      where: { userId: req.user.id },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      amount: r.amount.toString(),
+      status: r.status,
+      createdAt: r.createdAt,
+      paidAt: r.paidAt,
+    }));
+  }
+
   @Get(':id')
   async get(@Req() req: Request & { user: AuthUser }, @Param('id') id: string): Promise<unknown> {
     const r = await this.prisma.recharge.findUnique({ where: { id } });
