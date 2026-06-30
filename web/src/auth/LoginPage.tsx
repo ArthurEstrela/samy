@@ -46,6 +46,13 @@ export function LoginPage(): JSX.Element {
             >
               Entrar como modelo (teste)
             </button>
+            <button
+              type="button"
+              onClick={() => void devLogin('ADMIN').then(() => navigate('/admin', { replace: true }))}
+              className="rounded-full border border-mist/40 px-6 py-3 text-cream hover:border-ember"
+            >
+              Entrar como admin (dev)
+            </button>
           </div>
         )}
       </div>

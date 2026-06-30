@@ -7,7 +7,7 @@ import type { AuthResult, SessionUser } from '../types/api';
 interface AuthValue {
   user: SessionUser | null;
   login: (idToken: string) => Promise<void>;
-  devLogin: (role?: 'CLIENT' | 'MODEL') => Promise<void>;
+  devLogin: (role?: 'CLIENT' | 'MODEL' | 'ADMIN') => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       setSession({ accessToken: result.accessToken, refreshToken: result.refreshToken, user: result.user });
       setUser(result.user);
     },
-    devLogin: async (role: 'CLIENT' | 'MODEL' = 'CLIENT') => {
+    devLogin: async (role: 'CLIENT' | 'MODEL' | 'ADMIN' = 'CLIENT') => {
       const result = await apiFetch<AuthResult>('/auth/dev-login', { method: 'POST', body: { role } });
       setSession({ accessToken: result.accessToken, refreshToken: result.refreshToken, user: result.user });
       setUser(result.user);

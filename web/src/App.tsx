@@ -7,6 +7,7 @@ import { WalletPage } from './wallet/WalletPage';
 import { ModelDashboard } from './model/ModelDashboard';
 import { CallScreen } from './calls/CallScreen';
 import { RankingPage } from './ranking/RankingPage';
+import { AdminPage } from './admin/AdminPage';
 
 export default function App(): JSX.Element {
   return (
@@ -18,6 +19,7 @@ export default function App(): JSX.Element {
       <Route path="/painel" element={<ProtectedRoute><ModelDashboard /></ProtectedRoute>} />
       <Route path="/call/:id" element={<ProtectedRoute><CallScreen /></ProtectedRoute>} />
       <Route path="/ranking" element={<ProtectedRoute><RankingPage /></ProtectedRoute>} />
+      <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
     </Routes>
   );
 }

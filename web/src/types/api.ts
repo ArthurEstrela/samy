@@ -106,3 +106,12 @@ export interface RechargeSummary {
   createdAt: string;
   paidAt: string | null;
 }
+
+export interface AdminUser {
+  id: string;
+  role: string;
+  status: string;
+  email: string;
+  displayName: string;
+  createdAt: string;
+}
