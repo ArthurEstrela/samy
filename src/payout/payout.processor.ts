@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Payout } from '@prisma/client';
+import type { Payout } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { PSP_PAYOUT_PORT } from './psp-payout.port';
@@ -34,9 +34,16 @@ export class PayoutProcessor {
       where: { status: 'PROCESSING', OR: [{ processingAt: { lt: cutoff } }, { processingAt: null }] },
     });
     for (const payout of stuck) {
-      // Re-reivindica (renova o carimbo) — se outro worker já pegou, count !== 1.
+      // Re-reivindica renovando o carimbo. O guard repete o filtro de "parado"
+      // (< cutoff ou null): se outro recoverer já renovou o carimbo pra agora,
+      // este vê count === 0 e pula — serializa dois recoverers, não só contra um
+      // worker que já saiu de PROCESSING.
       const claimed = await this.prisma.payout.updateMany({
-        where: { id: payout.id, status: 'PROCESSING' },
+        where: {
+          id: payout.id,
+          status: 'PROCESSING',
+          OR: [{ processingAt: { lt: cutoff } }, { processingAt: null }],
+        },
         data: { processingAt: new Date() },
       });
       if (claimed.count !== 1) continue;
