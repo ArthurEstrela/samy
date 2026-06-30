@@ -88,4 +88,12 @@ export class WalletService {
       throw new ServiceUnavailableException('payment provider unavailable');
     }
   }
+
+  async expireStaleRecharges(): Promise<number> {
+    const res = await this.prisma.recharge.updateMany({
+      where: { status: 'PENDING', expiresAt: { lt: new Date() } },
+      data: { status: 'EXPIRED' },
+    });
+    return res.count;
+  }
 }
