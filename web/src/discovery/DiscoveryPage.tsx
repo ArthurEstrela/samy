@@ -15,6 +15,7 @@ export function DiscoveryPage(): JSX.Element {
         <h1 className="font-display text-4xl text-cream">Quem você quer ouvir?</h1>
         <div className="flex items-baseline gap-4 text-sm">
           <Link to="/wallet" className="font-mono text-cream hover:text-ember">⌗ {bal?.balance ?? '…'} · Carteira</Link>
+          <Link to="/ranking" className="text-mist text-sm hover:text-cream">Ranking</Link>
           <button onClick={() => void logout()} className="text-mist hover:text-cream">sair</button>
         </div>
       </header>
