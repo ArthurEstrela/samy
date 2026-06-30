@@ -17,6 +17,7 @@ export class PayoutScheduler {
     }
     try {
       await this.payoutProcessor.processPending();
+      await this.payoutProcessor.recoverStuck();
     } catch (err) {
       this.logger.error('payout processing tick failed', err as Error);
     }
