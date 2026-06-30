@@ -34,11 +34,14 @@ exige nova coluna de dados nem job: é derivado.
 - **Tiers e taxas (default; configurável por env, valores em créditos):**
   | Tier | Ganho bruto ≥ | takeRate (comissão) |
   |------|---------------|----------------------|
-  | BRONZE | 0 | 0.30 |
-  | PRATA | 500 | 0.25 |
-  | OURO | 2000 | 0.20 |
-  | DIAMANTE | 10000 | 0.15 |
-  Env opcionais `RANKING_THRESHOLDS` / `RANKING_RATES` sobrescrevem; ausentes → defaults acima.
+  | BRONZE | 0 | **= `GLOBAL_TAKE_RATE`** |
+  | PRATA | 500 | min(global, 0.25) |
+  | OURO | 2000 | min(global, 0.20) |
+  | DIAMANTE | 10000 | min(global, 0.15) |
+  **BRONZE herda a taxa global** (modelo nova = comportamento atual, sem regressão nos splits
+  existentes). Tiers acima **reduzem** a comissão, sempre limitados a `min(global, taxa do tier)` —
+  subir de tier nunca aumenta a comissão. Env opcionais `RANKING_THRESHOLDS` / `RANKING_RATES`
+  sobrescrevem thresholds/taxas; ausentes → defaults acima.
 - **Resolução da takeRate efetiva (nova ordem):** `override manual (admin) → taxa do tier → global`.
   Implementado mantendo `resolveTakeRate(override, fallback)` e passando `fallback = tierRate`.
   O Billing calcula o ganho bruto da modelo **dentro da mesma transação** do split e usa a taxa do
@@ -70,10 +73,11 @@ web/src/App.tsx / router               + rota /ranking + link na nav            
 ## 4. Detalhes
 
 ### 4.1 `ranking.ts` (puro, testável)
-- `TIERS` ordenado asc: `[{tier:'BRONZE', min:0, rate:0.30}, ...]`.
-- `tierForEarnings(earned: Decimal): { tier, rate: Decimal, nextTier|null, nextThreshold|null,
+- `loadTierTable(globalRate: Decimal, env?)` → linhas `{tier, min, rate}` asc por `min`. BRONZE
+  `rate = globalRate`; demais `rate = min(globalRate, defaultOuEnv)`. Parsing defensivo da env
+  (formato inválido → defaults, sem derrubar o boot).
+- `tierForEarnings(earned: Decimal, table): { tier, rate: Decimal, nextTier|null, nextThreshold|null,
   remaining|null }` — acha o maior tier cujo `min ≤ earned`; calcula o próximo e quanto falta.
-- Leitura de env com parsing defensivo (formato inválido → defaults, sem derrubar o boot).
 
 ### 4.2 `RankingService`
 - `grossEarned(modelId)`: `prisma.ledgerEntry.aggregate(_sum amount)` com `account=model:${id}` e
@@ -85,8 +89,9 @@ web/src/App.tsx / router               + rota /ranking + link na nav            
 
 ### 4.3 Billing
 - Em `chargeMinute` e `sendGift`: substituir `this.globalTakeRate` como fallback por
-  `tierRate = rankingService.tierRateFor(modelId, tx)` (que internamente usa `grossEarned` + `tierForEarnings`).
+  `tierRate = rankingService.tierRateFor(modelId, tx)` (tabela construída a partir do `GLOBAL_TAKE_RATE`).
   `resolveTakeRate(profile?.takeRate ?? null, tierRate)` — override manual continua tendo prioridade.
+  Como BRONZE = global, modelos sem ganho mantêm o split atual (sem regressão nos e2e existentes).
 - `BillingModule` importa `RankingModule` (sem ciclo: ranking não depende de billing).
 
 ### 4.4 Frontend
