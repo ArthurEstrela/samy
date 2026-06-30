@@ -28,7 +28,8 @@ model Payout {
   status      String    @default("PENDING")
   pixKey      String
   createdAt   DateTime  @default(now())
-  processedAt DateTime?
+  processedAt  DateTime?
+  processingAt DateTime?
 
   @@index([status])
   @@map("payouts")
