@@ -16,6 +16,7 @@ export function GiftPicker({ modelId }: { modelId: string }): JSX.Element {
     if (e instanceof ApiError && e.status === 404) return 'Presente indisponível.';
     return 'Não foi possível enviar.';
   };
+  const errText = errorMsg();
   const insufficient = send.error instanceof ApiError && send.error.status === 402;
 
   return (
@@ -40,9 +41,9 @@ export function GiftPicker({ modelId }: { modelId: string }): JSX.Element {
         <p className="mt-2 text-mist text-sm">Nenhum presente disponível.</p>
       )}
       {send.isSuccess && <p className="mt-3 text-gold text-sm">{sentName} enviado ✓</p>}
-      {errorMsg() && (
+      {errText && (
         <p className="mt-3 text-ember text-sm">
-          {errorMsg()}{' '}
+          {errText}{' '}
           {insufficient && <Link to="/wallet" className="underline">Carteira</Link>}
         </p>
       )}
