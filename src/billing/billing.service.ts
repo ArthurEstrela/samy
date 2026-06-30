@@ -14,18 +14,13 @@ export interface ChargeResult {
 
 @Injectable()
 export class BillingService {
-  private readonly globalTakeRate: Prisma.Decimal;
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly ledger: LedgerService,
     private readonly ranking: RankingService,
   ) {
-    const raw = process.env.GLOBAL_TAKE_RATE;
-    if (!raw) {
-      throw new Error('GLOBAL_TAKE_RATE env var is required');
-    }
-    this.globalTakeRate = new Prisma.Decimal(raw);
+    // A taxa por tier (que tem BRONZE = GLOBAL_TAKE_RATE como fallback) é
+    // resolvida pelo RankingService, que também valida a env no boot.
   }
 
   async chargeMinute(callId: string, minuteNumber: number): Promise<ChargeResult> {
