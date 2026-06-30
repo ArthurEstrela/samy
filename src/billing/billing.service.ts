@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestj
 import { Gift, GiftType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LedgerService } from '../ledger/ledger.service';
+import { RankingService } from '../ranking/ranking.service';
 import { resolveTakeRate, computeSplit } from './take-rate';
 
 export interface ChargeResult {
@@ -18,6 +19,7 @@ export class BillingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ledger: LedgerService,
+    private readonly ranking: RankingService,
   ) {
     const raw = process.env.GLOBAL_TAKE_RATE;
     if (!raw) {
@@ -61,7 +63,8 @@ export class BillingService {
       }
 
       const profile = await tx.modelProfile.findUnique({ where: { userId: fresh.modelUserId } });
-      const takeRate = resolveTakeRate(profile?.takeRate ?? null, this.globalTakeRate);
+      const tierRate = await this.ranking.tierRateFor(fresh.modelUserId, tx);
+      const takeRate = resolveTakeRate(profile?.takeRate ?? null, tierRate);
       const { commission, modelShare } = computeSplit(price, takeRate);
       await this.ledger.postTransaction(
         group,
@@ -94,7 +97,8 @@ export class BillingService {
         throw new HttpException('insufficient balance', HttpStatus.PAYMENT_REQUIRED);
       }
       const profile = await tx.modelProfile.findUnique({ where: { userId: modelId } });
-      const takeRate = resolveTakeRate(profile?.takeRate ?? null, this.globalTakeRate);
+      const tierRate = await this.ranking.tierRateFor(modelId, tx);
+      const takeRate = resolveTakeRate(profile?.takeRate ?? null, tierRate);
       const { commission, modelShare } = computeSplit(price, takeRate);
       const gift = await tx.gift.create({
         data: { clientUserId: clientId, modelUserId: modelId, giftTypeId, priceSnapshot: price },
