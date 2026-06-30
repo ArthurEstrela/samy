@@ -98,3 +98,11 @@ export interface RankingEntry {
   stageName: string;
   tier: Tier;
 }
+
+export interface RechargeSummary {
+  id: string;
+  amount: string;
+  status: string;
+  createdAt: string;
+  paidAt: string | null;
+}

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useBalance } from './useBalance';
 import { RechargePanel } from './RechargePanel';
+import { RechargeHistory } from './RechargeHistory';
 
 export function WalletPage(): JSX.Element {
   const { data, isLoading } = useBalance();
@@ -16,6 +17,7 @@ export function WalletPage(): JSX.Element {
         </p>
       </section>
       <RechargePanel />
+      <RechargeHistory />
     </main>
   );
 }
