@@ -8,9 +8,11 @@ import { ModelDashboard } from './model/ModelDashboard';
 import { CallScreen } from './calls/CallScreen';
 import { RankingPage } from './ranking/RankingPage';
 import { AdminPage } from './admin/AdminPage';
+import { AgeGate } from './legal/AgeGate';
 
 export default function App(): JSX.Element {
   return (
+    <AgeGate>
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<ProtectedRoute><DiscoveryPage /></ProtectedRoute>} />
@@ -21,5 +23,6 @@ export default function App(): JSX.Element {
       <Route path="/ranking" element={<ProtectedRoute><RankingPage /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
     </Routes>
+    </AgeGate>
   );
 }

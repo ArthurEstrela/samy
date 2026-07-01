@@ -44,7 +44,7 @@ export function LoginPage(): JSX.Element {
               onClick={() => void devLogin('MODEL').then(() => navigate('/painel', { replace: true }))}
               className="rounded-full border border-mist/40 px-6 py-3 text-cream hover:border-ember"
             >
-              Entrar como modelo (teste)
+              Entrar como acompanhante (teste)
             </button>
             <button
               type="button"
