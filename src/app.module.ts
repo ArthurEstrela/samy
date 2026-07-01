@@ -17,6 +17,7 @@ import { RankingModule } from './ranking/ranking.module';
 import { HealthModule } from './health/health.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { SchedulerModule } from './scheduler/scheduler.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { SchedulerModule } from './scheduler/scheduler.module';
     ScheduleModule.forRoot(),
     SchedulerModule,
     HealthModule,
+    ReportsModule,
   ],
 })
 export class AppModule {}

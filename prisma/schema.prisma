@@ -167,3 +167,19 @@ model Gift {
   @@index([modelUserId])
   @@map("gifts")
 }
+
+model Report {
+  id             String    @id @default(uuid())
+  reporterUserId String
+  reportedUserId String
+  callId         String?
+  reason         String
+  details        String?
+  status         String    @default("OPEN")
+  createdAt      DateTime  @default(now())
+  resolvedAt     DateTime?
+
+  @@index([status])
+  @@index([reportedUserId])
+  @@map("reports")
+}
