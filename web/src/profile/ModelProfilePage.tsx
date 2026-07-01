@@ -7,6 +7,7 @@ import { Voiceprint } from '../ui/Voiceprint';
 import { StatusBadge } from '../ui/StatusBadge';
 import { ApiError } from '../lib/api-client';
 import { GiftPicker } from '../gifts/GiftPicker';
+import { ReportButton } from '../reports/ReportButton';
 
 export function ModelProfilePage(): JSX.Element {
   const { id = '' } = useParams();
@@ -65,6 +66,7 @@ export function ModelProfilePage(): JSX.Element {
       </div>
 
       <GiftPicker modelId={model.userId} />
+      <ReportButton reportedUserId={model.userId} />
     </main>
   );
 }

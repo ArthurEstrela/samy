@@ -115,3 +115,5 @@ export interface AdminUser {
   displayName: string;
   createdAt: string;
 }
+
+export type ReportReason = 'EXPLICITO' | 'ENCONTRO_FORA' | 'ASSEDIO' | 'MENOR' | 'GOLPE' | 'OUTRO';
