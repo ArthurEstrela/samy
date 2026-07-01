@@ -117,3 +117,13 @@ export interface AdminUser {
 }
 
 export type ReportReason = 'EXPLICITO' | 'ENCONTRO_FORA' | 'ASSEDIO' | 'MENOR' | 'GOLPE' | 'OUTRO';
+
+export interface AdminReport {
+  id: string;
+  reportedUserId: string;
+  reportedName: string;
+  reason: string;
+  details: string | null;
+  status: string;
+  createdAt: string;
+}
